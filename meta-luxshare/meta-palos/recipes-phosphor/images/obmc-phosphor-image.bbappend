@@ -1,4 +1,4 @@
-OBMC_IMAGE_EXTRA_INSTALL:append:g220a = " \
+OBMC_IMAGE_EXTRA_INSTALL:append:palos = " \
     webui-vue \
     me-time-sync \
     static-mac-addr \
