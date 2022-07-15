@@ -105,14 +105,40 @@
 			linux,default-trigger = "timer";
 			led-pattern = <1000 1000>;
 		};
+
+/* 		power {
+			label = "power";
+			gpios = <&gpio ASPEED_GPIO(R, 1) GPIO_ACTIVE_LOW>;
+		}; */
+
+		uid {
+			label = "uid";
+			gpios = <&gpio ASPEED_GPIO(A, 2) GPIO_ACTIVE_LOW>;
+		};
+
+		health_green {
+			label = "health_green";
+			gpios = <&gpio ASPEED_GPIO(H, 1) GPIO_ACTIVE_LOW>;
+		};
+
+		health_red {
+			label = "health_red";
+			gpios = <&gpio ASPEED_GPIO(H, 2) GPIO_ACTIVE_LOW>;
+		};
 	};
 
 	gpio-keys {
 		compatible = "gpio-keys";
-		burn-in-signal {
+/* 		burn-in-signal {
 			label = "burn-in";
 			gpios = <&gpio ASPEED_GPIO(R, 5) GPIO_ACTIVE_LOW>;
 			linux,code = <ASPEED_GPIO(R, 5)>;
+		}; */
+
+		uid_button {
+			label = "uid_button";
+			gpios = <&gpio ASPEED_GPIO(Z, 7) GPIO_ACTIVE_LOW>;
+			linux,code = <ASPEED_GPIO(Q, 7)>;
 		};
 	};
 };
@@ -149,6 +175,16 @@
 
 &adc {
 	status = "okay";
+
+	pinctrl-names = "default";
+    pinctrl-0 = <&pinctrl_adc0_default &pinctrl_adc1_default
+        &pinctrl_adc2_default &pinctrl_adc3_default
+        &pinctrl_adc4_default &pinctrl_adc5_default
+        &pinctrl_adc6_default &pinctrl_adc7_default
+        &pinctrl_adc8_default &pinctrl_adc9_default
+        &pinctrl_adc10_default &pinctrl_adc11_default
+        &pinctrl_adc12_default &pinctrl_adc13_default
+        &pinctrl_adc14_default &pinctrl_adc15_default>;
 };
 
 &wdt2 {
@@ -169,41 +205,51 @@
 			"BMC_NMI_OUT_N","","",
 	/*F0-F7*/	"BMC_ASSERT_CPU1_PROCHOT","VGA_PORT_SEL","BMC_SYS_MON_CPU0_PROCHOT","BMC_SYS_MON_CPU1_PROCHOT",
 			"CPU0_PRSNT_N","CPU1_PRSNT_N","","",
-	/*G0-G7*/	"PCA_REV_ID0","PCA_REV_ID1","BMC_RELOAD_N",
-			"P12V_PVDDQ_PMBUS_ALERT_N","BMC_JTAG_TCK_MUX_R_SEL","","NMI_OUT",
-			"NMI_BUTTON",
-	/*H0-H7*/	"BMC_CPLD_JTAG_TDI","BMC_CPLD_JTAG_TDO","BMC_CPLD_JTAG_TCK",
-			"BMC_CPLD_JTAG_TMS","FM_PROJECT_ID6","FM_BOARD_REV_ID0",
-			"PCA9546_U70_RST_N","IRQ_SML0_ALERT_N",
-	/*I0-I7*/	"FAULT_FRONT_RISER_P12V_N","FAULT_OCP_P12V_N","FM_BMC_PCH_SCI_R_N",
-			"","","","","",
-	/*J0-J7*/	"FM_CPU0_SKTOCC_N","FM_CPU1_SKTOCC_N","FM_CPU1_DISABLE_COD_N",
-			"","","","","",
+	/*G0-G7*/	"PCA_REV_ID0","PCA_REV_ID1","CONN1_PRE_N",
+			"BMC_LIQ_SENSOR1_OUTPUT","CPU_ALERT_N","BMC_CPLD_HITLESS_N","BMC_LIQ_SENSOR2_OUTPUT",
+			"M2_1_PEDET",
+	/*H0-H7*/	"M2_0_PEDET","LED_HLTH_GRN_BMC","LED_HLTH_RED_BMC",
+			"RST_CPLD_BMC_SYS_N","BIOS_MEMTEMP_READY_OUT","BMC_ASSERT_CLR_CMOS",
+			"PHY_INT_N","RSVD_BMC_CPU0_GPIO_H7",
+	/*I0-I7*/	"BTN_UID_CPLD_OUT_N","CPU0_SLP_S3_N","CONN0_PRE_N",
+			"BMC_DUMP_LOG_N","","","","",
+	/*J0-J7*/	"SGPIO_BMC_R_CLK","SGPIO_BMC_R_DOUT","SGPIO_BMC_R_DIN",
+			"VGA_HSYNC_BMC_R","SGPIO_BMC_R_LD","VGA_VSYNC_BMC_R","BMC_VGA_DDC_CLK_R","BMC_VGA_DDC_DAT_R",
 	/*K0-K7*/	"","","","","","","","",
-	/*L0-L7*/	"P12V_FAULT_N","PWRGD_P12V_PCIE_RISER","","LEAKAGE_DETECT_INPUT_N",
-			"","IRQ_SML1_PMBUS_ALERT_N","","",
-	/*M0-M7*/	"","","","","","","","",
+	/*L0-L7*/	"","","","","","","","",
+	/*M0-M7*/	"BMC_ASSERT_CPU0_PROCHOT","BMC_LIQ_SENSOR_MODE_SEL","PE4_BMC_I2C_CPU0_RST_R_N",
+			"BTN_PWRON_SSIFP2CPLD_R_N","PWR_BTN_BMC_OUT_N","BMC_ASSERT_LOCAL_LOCK","","",
 	/*N0-N7*/	"","","","","","","","",
 	/*O0-O7*/	"","","","","","","","",
 	/*P0-P7*/	"","","","","","","","",
-	/*Q0-Q7*/	"","","","","","","FM_PCH_THERMTRIP_N","CHASSIS_INTRUSION",
-	/*R0-R7*/	"","PVCCIN_CPU1_SMBALERT_N","BMC_PREQ_R_N","FAULT_P12V_PCIE_RISER_N",
-			"ALT_P12V_PCIE_RISER_N","BURN_BOARD_N","PVCCIN_CPU0_SMBALERT_N","",
-	/*S0-S7*/	"BMC_PRDY_N","SIO_POWER_GOOD","FM_BMC_PWR_DEBUG_R_N",
-			"FM_BMC_XDP_DEBUG_EN","","STRAP_BMC_BATTERY_GPIOS5","","",
+	/*Q0-Q7*/	"","","","","","","EN_I2C_DIMM_MUX","PME_SB_PE_WAKE_N",
+	/*R0-R7*/	"","BMC_HDT_SEL","P3V_BAT_SOURCE","CPU0_UART0_BMC_EN",
+			"RST_BMC_G11_SW_N","RVD_GPIO_HDDBP_BMC","","",
+	/*S0-S7*/	"RVD_BMC_CPLD_GPIO1","CPU0_SLP_S5_N","PGD_SYS_PWROK",
+			"PS_ALERT_BMC_N","REMOTE_DIAG_0","REMOTE_DIAG_1","BMC_HWSTRAP5_NIC_RMII_SEL","",
 	/*T0-T7*/	"","","","","","","","",
 	/*U0-U7*/	"","","","","","","","",
 	/*V0-V7*/	"","","","","","","","",
-	/*W0-W7*/	"","","","","","","","",
+	/*W0-W7*/	"","RST_PCIE_BMC_GPIO_N","","","","","","",
 	/*X0-X7*/	"","","","","","","","",
-	/*Y0-Y7*/	"","PWRGD_PSU0_PWROK","CPU1_PROCHOT_LVT3_N","IRQ_BMC_PCH_SMI_LPC_N",
+	/*Y0-Y7*/	"CPU0_BUCS_LOCK","RST_BMC_I2C_SPD_MUX_N","RST_BTN_BMC_OUT_N","BTN_SYSRST_RC_N",
 			"","","","",
-	/*Z0-Z7*/	"XDP_PRSNT_N","BMC_XDP_SYS_PWROK","BMC_XDP_JTAG_SEL",
-			"PCH_BMC_SMI_ACTIVE_R_N","","","","",
-	/*AA0-AA7*/	"PWRGD_P12V_STBY_OCP","PS_PWROK","RST_PLTRST_BMC_R_N","HDA_SDO_R",
-			"FM_SLPS4_R_N","PWRGD_PSU1_PWROK","POWER_BUTTON","POWER_OUT",
-	/*AB0-AB7*/	"","RESET_OUT","SPI_BIOS_MODE_SELECT","POST_COMPLETE","","","","",
-	/*AC0-AC7*/	"","","","","","","","CPLD_PLTRST_B_N";
+	/*Z0-Z7*/	"BOARD_ID0","BOARD_ID1","BOARD_ID2",
+			"BMC_CPLD_JTAG_OE_N","","","","",
+	/*AA0-AA7*/	"VR_SMB_ALERT_N","CPU_MISMATCH_BIT_0","CPU_MISMATCH_BIT_1","CPU_MISMATCH_BIT_2",
+			"CPU0_BMC_SMI_N","CPU0_BMC_IERR_N","CPU0_BMC_TIMESYNC","FM_BMC_READ_SPD_TEMP",
+	/*AB0-AB7*/	"BMC_HDT_RESET_N","BMC_HDT_PWROK","BMC_ARM_WDOG","RVD_BMC_CPLD_GPIO2","","","","",
+	/*AC0-AC7*/	"","","","","","","","RST_BMC_LPC_R_N";
+};
+
+&kcs1 {
+	aspeed,lpc-io-reg = <0xCA0>;
+	status = "okay";
+};
+
+&kcs2 {
+	aspeed,lpc-io-reg = <0xCA8>;
+	status = "okay";
 };
 
 &kcs3 {
@@ -219,6 +265,10 @@
 &lpc_snoop {
 	snoop-ports = <0x80>;
 	status = "okay";
+};
+
+&lpc_ctrl {
+    status = "okay";
 };
 
 &uart1 {
@@ -296,6 +346,7 @@
 		reg = <0x53>;
 		wp-gpios = <&gpio ASPEED_GPIO(A, 0) GPIO_ACTIVE_LOW>;
 		num-addresses = <16>;
+		lable = "fru";
 	};
 };
 
@@ -353,12 +404,6 @@
 		shunt-resistor = <1000>;
 	};
 
-/*	ina220@42 {
-		compatible = "ti,ina220";
-		reg = <0x42>;
-		shunt-resistor = <1000>;
-	};*/
-
 	ina220@44 {
 		compatible = "ti,ina220";
 		reg = <0x44>;
@@ -410,37 +455,30 @@
 	tmp468@48 {
 		compatible = "tmp468";
 		reg = <0x48>;
+		label = "mb_zone";
 	};
 };
 
 &i2c7 {
 	status = "okay";
 	psu0fru: psu0fru@50 {
-		compatible = "atmel,24c512";
-		pagesize = <128>;
+		compatible = "atmel,24c256";
 		reg = <0x53>;
-		num-addresses = <16>;
 	};
 
-	psu0: psu0@58 {
-		compatible = "atmel,24c512";
-		pagesize = <128>;
-		reg = <0x53>;
-		num-addresses = <16>;
+	psu0: power-supply@58 {
+		compatible = "pmbus";
+		reg = <0x58>;
 	};
 
 	psu1fru: psu1fru@51 {
-		compatible = "atmel,24c512";
-		pagesize = <128>;
+		compatible = "atmel,24c256";
 		reg = <0x51>;
-		num-addresses = <16>;
 	};
 
-	psu1: psu1@59 {
-		compatible = "atmel,24c512";
-		pagesize = <128>;
-		reg = <0x53>;
-		num-addresses = <16>;
+	psu1: power-supply@59 {
+		compatible = "pmbus";
+		reg = <0x59>;
 	};
 };
 
@@ -777,7 +815,8 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pwm0_default &pinctrl_pwm1_default
 			 &pinctrl_pwm2_default &pinctrl_pwm3_default
-			 &pinctrl_pwm4_default &pinctrl_pwm5_default>;
+			 &pinctrl_pwm4_default &pinctrl_pwm5_default
+			 &pinctrl_pwm6_default &pinctrl_pwm7_default>;
 
 	fan@0 {
 		reg = <0x00>;
@@ -803,9 +842,17 @@
 		reg = <0x05>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x0a 0x0b>;
 	};
+	fan@6 {
+		reg = <0x06>;
+		aspeed,fan-tach-ch = /bits/ 8 <0x0c 0x0d>;
+	};
+	fan@7 {
+		reg = <0x07>;
+		aspeed,fan-tach-ch = /bits/ 8 <0x0e 0x0f>;
+	};
 };
 
-&gpio {
+/* &gpio {
 	pin_gpio_i3 {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(I, 3) GPIO_ACTIVE_HIGH>;
@@ -819,7 +866,7 @@
 		output-low;
 		line-name = "EN_NCSI_SWITCH_N";
 	};
-};
+}; */
 
 &video {
 	status = "okay";
