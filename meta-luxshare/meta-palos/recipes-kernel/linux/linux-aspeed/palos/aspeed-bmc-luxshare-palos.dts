@@ -101,9 +101,9 @@
 		compatible = "gpio-leds";
 		bmc_alive {
 			label = "bmc_alive";
-			gpios = <&gpio ASPEED_GPIO(B, 0) GPIO_ACTIVE_LOW>;
+			gpios = <&gpio ASPEED_GPIO(B, 1) GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "timer";
-			led-pattern = <1000 1000>;
+			led-pattern = <500 500>;
 		};
 
 /* 		power {
