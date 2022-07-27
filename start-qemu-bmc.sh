@@ -12,6 +12,8 @@
 #./qemu-system-arm -m 512 -machine $machine -nographic -drive file=$target,format=raw,if=mtd -net nic -net user,hostfwd=:10.53.17.25:2222-:22,hostfwd=:10.53.17.25:2443-:443,hostname=qemu
 #fi
 
+WorkDir=$(cd `dirname $0`; pwd)
+
 function usage()
 {
 	echo "Usage:"
@@ -32,11 +34,11 @@ echo "Info: check image..."
 if [[ -n $1 ]] && [[ -e $1 ]]; then
         image=$1
 else
-        image=./build/palos/tmp/deploy/images/palos/image-bmc
+        image=$WorkDir/build/palos/tmp/deploy/images/palos/image-bmc
 fi
 if [[ ! -e $image ]]; then
 	echo "Warning: Not found $image, use default image"
-	image=./obmc-phosphor-image-evb-ast2500-20220713080538.static.mtd
+	image=$WorkDir/obmc-phosphor-image-evb-ast2500-20220713080538.static.mtd
 fi
 echo "Info: image is $image"
 
@@ -74,11 +76,11 @@ echo "udp port 623 -> ${fwd}623"
 # Check qemu tools
 qemu=/home/openbmc/qemu-system-arm
 if [[ ! -e $qemu ]]; then
-        if [[ ! -e ./qemu-system-arm ]]; then
+        if [[ ! -e $WorkDir/qemu-system-arm ]]; then
                 echo "Error: not found qemu-system-arm"
                 exit
         fi
-        qemu=./qemu-system-arm
+        qemu=$WorkDir/qemu-system-arm
 fi
 
 echo "Run qemu..."
