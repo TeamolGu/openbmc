@@ -12,7 +12,7 @@
         FieldReplaceable: 'true'
     xyz.openbmc_project.Inventory.Item:
         Present: 'true'
-/system/board/G220A:
+/system/board/Palos:
     xyz.openbmc_project.Inventory.Decorator.Cacheable:
         Cached: 'true'
     xyz.openbmc_project.Inventory.Decorator.Replaceable:
