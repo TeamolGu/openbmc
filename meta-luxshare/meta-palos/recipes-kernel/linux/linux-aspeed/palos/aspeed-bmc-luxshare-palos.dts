@@ -410,6 +410,12 @@
 		shunt-resistor = <1000>;
 	};
 
+/* 	ina220@42 {
+		compatible = "ti,ina220";
+		reg = <0x4a>;
+		shunt-resistor = <1000>;
+	}; */
+
 	ina220@45 {
 		compatible = "ti,ina220";
 		reg = <0x45>;
@@ -418,7 +424,7 @@
 
 	ina220@47 {
 		compatible = "ti,ina220";
-		reg = <0x46>;
+		reg = <0x47>;
 		shunt-resistor = <1000>;
 	};
 
@@ -430,30 +436,23 @@
 
 	ina220@41 {
 		compatible = "ti,ina220";
+		reg = <0x41>;
+		shunt-resistor = <1000>;
+	};
+
+	ina220@46 {
+		compatible = "ti,ina220";
 		reg = <0x46>;
 		shunt-resistor = <1000>;
 	};
 
-	ina220@46 {
-		compatible = "ti,ina220";
-		reg = <0x4a>;
-		shunt-resistor = <1000>;
-	};
-
-	ina220@46 {
-		compatible = "ti,ina220";
-		reg = <0x4a>;
-		shunt-resistor = <1000>;
-	};
-
 	mp5023@42 {
-		compatible = "ti,ina220";
-		reg = <0x4a>;
-		shunt-resistor = <1000>;
+		compatible = "mps,mp5023";
+		reg = <0x42>;
 	};
 
 	tmp468@48 {
-		compatible = "tmp468";
+		compatible = "ti,tmp468";
 		reg = <0x48>;
 		label = "mb_zone";
 	};
@@ -497,9 +496,9 @@
 
 &i2c10 {
 	status = "okay";
-	i2c-switch@70 {
+	i2c-switch@71 {
 		compatible = "nxp,pca9546";
-		reg = <0x70>;
+		reg = <0x71>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 
