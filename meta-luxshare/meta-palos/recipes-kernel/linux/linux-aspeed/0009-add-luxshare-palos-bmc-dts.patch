@@ -1,0 +1,21 @@
+From 8a02fdd6c15abe116ab60020805b17db95d50cd9 Mon Sep 17 00:00:00 2001
+From: liyuxiang <yuxiang.li@luxshare-ict.com>
+Date: Thu, 14 Jul 2022 09:10:22 +0800
+Subject: [PATCH] add luxshare palos bmc dts
+
+---
+ arch/arm/boot/dts/Makefile | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/arch/arm/boot/dts/Makefile b/arch/arm/boot/dts/Makefile
+index dc225e354791..1748c41b5607 100644
+--- a/arch/arm/boot/dts/Makefile
++++ b/arch/arm/boot/dts/Makefile
+@@ -1464,6 +1464,7 @@ dtb-$(CONFIG_ARCH_ASPEED) += \
+ 	aspeed-bmc-asrock-e3c246d4i.dtb \
+ 	aspeed-bmc-asrock-romed8hm3.dtb \
+ 	aspeed-bmc-bytedance-g220a.dtb \
++	aspeed-bmc-luxshare-palos.dtb \
+ 	aspeed-bmc-facebook-bletchley.dtb \
+ 	aspeed-bmc-facebook-cloudripper.dtb \
+ 	aspeed-bmc-facebook-cmm.dtb \

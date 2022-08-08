@@ -1,0 +1,32 @@
+diff --git a/sensorhandler.cpp b/sensorhandler.cpp
+index 3217412..3449af6 100644
+--- a/sensorhandler.cpp
++++ b/sensorhandler.cpp
+@@ -1465,6 +1465,16 @@ ipmi_ret_t ipmicmdPlatformEvent(ipmi_netfn_t, ipmi_cmd_t,
+     return IPMI_CC_OK;
+ }
+ 
++ipmi::RspType<uint8_t,
++              uint8_t,
++              uint8_t,
++              uint8_t,
++              uint8_t
++              >ipmi_sensor_cmd_test()
++{
++    return ipmi::responseSuccess(0x1, 0x2, 0x3, 0x4, 0x5);
++}
++
+ void register_netfn_sen_functions()
+ {
+     // Handlers with dbus-sdr handler implementation.
+@@ -1522,6 +1532,10 @@ void register_netfn_sen_functions()
+     ipmi::registerHandler(ipmi::prioOpenBmcBase, ipmi::netFnSensor,
+                           ipmi::sensor_event::cmdGetSensorType,
+                           ipmi::Privilege::User, ipmiGetSensorType);
++    // <OEM:test>
++    ipmi::registerHandler(ipmi::prioOpenBmcBase, ipmi::netFnSensor,
++                          0x32,
++                          ipmi::Privilege::User, ipmi_sensor_cmd_test);
+ 
+     return;
+ }
