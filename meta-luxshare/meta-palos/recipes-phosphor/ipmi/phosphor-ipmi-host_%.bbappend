@@ -7,3 +7,8 @@ EXTRA_OEMESON:palos= " \
     -Dinvsensor-yaml-gen=${STAGING_DIR_HOST}${datadir}/palos-yaml-config/ipmi-inventory-sensors.yaml \
     -Dfru-yaml-gen=${STAGING_DIR_HOST}${datadir}/palos-yaml-config/ipmi-fru-read.yaml \
     "
+
+SRC_URI:append:palos = " file://0001-add-luxshare-palos-ipmicmd-test.patch \
+    "
+
+PACKAGE_ARCH = "${MACHINE_ARCH}"
