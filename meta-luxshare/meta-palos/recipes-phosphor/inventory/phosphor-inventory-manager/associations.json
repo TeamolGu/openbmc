@@ -1,0 +1,258 @@
+[
+
+
+    {
+        "path": "system/chassis/motherboard/fan0",
+        "endpoints":
+        [
+            {
+                "types":
+                {
+                    "rType": "inventory",
+                    "fType": "sensors"
+                },
+                "paths":
+                [
+                    "/xyz/openbmc_project/sensors/fan_tach/fan0_0",
+                    "/xyz/openbmc_project/sensors/fan_tach/fan0_1"
+                ]
+            },
+            {
+                "types":
+                {
+                    "rType": "inventory",
+                    "fType": "leds"
+                },
+                "paths":
+                [
+                    "/xyz/openbmc_project/led/physical/fan0"
+                ]
+            }
+        ]
+    },
+
+
+
+    {
+        "path": "system/chassis/motherboard",
+        "endpoints":
+        [
+            {
+                "types":
+                {
+                    "rType": "inventory",
+                    "fType": "sensors"
+                },
+                "paths":
+                [
+                    "/xyz/openbmc_project/sensors/temperature/ambient",
+                    "/xyz/openbmc_project/sensors/temperature/pcie",
+                    
+                    "/xyz/openbmc_project/sensors/temperature/In_Temp",
+                    "/xyz/openbmc_project/sensors/temperature/MB_In1_Temp",
+
+                    "/xyz/openbmc_project/sensors/temperature/Psu_Temp",
+                    "/xyz/openbmc_project/sensors/temperature/Pci0_Temp",
+                    "/xyz/openbmc_project/sensors/temperature/Out_Temp",
+                    "/xyz/openbmc_project/sensors/temperature/MB_In0_Temp",
+
+
+                    "/xyz/openbmc_project/sensors/voltage/p0_vdd_voltage",
+                    "/xyz/openbmc_project/sensors/voltage/p0_vcs_voltage",
+                    "/xyz/openbmc_project/sensors/voltage/p0_vddr_voltage",
+                    "/xyz/openbmc_project/sensors/voltage/p0_vdn_voltage",
+                    "/xyz/openbmc_project/sensors/voltage/p1_vcs_voltage",
+                    "/xyz/openbmc_project/sensors/voltage/p1_vdd_voltage",
+                    "/xyz/openbmc_project/sensors/voltage/p1_vddr_voltage",
+                    "/xyz/openbmc_project/sensors/voltage/p1_vdn_voltage",
+
+                    "/xyz/openbmc_project/sensors/power/p0_vdd_power",
+                    "/xyz/openbmc_project/sensors/power/p0_vcs_power",
+                    "/xyz/openbmc_project/sensors/power/p0_vddr_power",
+                    "/xyz/openbmc_project/sensors/power/p0_vdn_power",
+                    "/xyz/openbmc_project/sensors/power/p1_vdd_power",
+                    "/xyz/openbmc_project/sensors/power/p1_vcs_power",
+                    "/xyz/openbmc_project/sensors/power/p1_vddr_power",
+                    "/xyz/openbmc_project/sensors/power/p1_vdn_power",
+
+                    "/xyz/openbmc_project/sensors/temperature/p0_vddr_temp",
+                    "/xyz/openbmc_project/sensors/temperature/p0_vcs_temp",
+                    "/xyz/openbmc_project/sensors/temperature/p0_vdd_temp",
+                    "/xyz/openbmc_project/sensors/temperature/p0_vdn_temp",
+                    "/xyz/openbmc_project/sensors/temperature/p1_vddr_temp",
+                    "/xyz/openbmc_project/sensors/temperature/p1_vcs_temp",
+                    "/xyz/openbmc_project/sensors/temperature/p1_vdd_temp",
+                    "/xyz/openbmc_project/sensors/temperature/p1_vdn_temp",
+
+                    "/xyz/openbmc_project/sensors/current/p0_vcs_current",
+                    "/xyz/openbmc_project/sensors/current/p0_vddr_current",
+                    "/xyz/openbmc_project/sensors/current/p0_vdd_current",
+                    "/xyz/openbmc_project/sensors/current/p0_vdn_current",
+                    "/xyz/openbmc_project/sensors/current/p1_vcs_current",
+                    "/xyz/openbmc_project/sensors/current/p1_vddr_current",
+                    "/xyz/openbmc_project/sensors/current/p1_vdd_current",
+                    "/xyz/openbmc_project/sensors/current/p1_vdn_current",
+
+                    "/xyz/openbmc_project/sensors/power/fan_disk_power",
+                    "/xyz/openbmc_project/sensors/power/io_power",
+                    "/xyz/openbmc_project/sensors/power/total_power",
+                    "/xyz/openbmc_project/sensors/power/p0_io_power",
+                    "/xyz/openbmc_project/sensors/power/p0_mem_power",
+                    "/xyz/openbmc_project/sensors/power/p0_power",
+                    "/xyz/openbmc_project/sensors/power/p1_io_power",
+                    "/xyz/openbmc_project/sensors/power/p1_mem_power",
+                    "/xyz/openbmc_project/sensors/power/p1_power"
+
+                ]
+            }
+        ]
+    },
+    {
+        "path": "system/chassis/motherboard/gv100card0",
+        "endpoints":
+        [
+            {
+                "types":
+                {
+                    "rType": "inventory",
+                    "fType": "sensors"
+                },
+                "paths":
+                [
+                    "/xyz/openbmc_project/sensors/temperature/gpu0_core_temp",
+                    "/xyz/openbmc_project/sensors/temperature/gpu0_mem_temp"
+                ]
+            }
+        ]
+    },
+
+
+
+    {
+        "path": "system/chassis/motherboard/cpu1/core0",
+        "endpoints":
+        [
+            {
+                "types":
+                {
+                    "rType": "inventory",
+                    "fType": "sensors"
+                },
+                "paths":
+                [
+                    "/xyz/openbmc_project/sensors/temperature/p1_core0_temp"
+                ]
+            }
+        ]
+    },
+    
+
+    {
+        "path": "system/chassis/motherboard/dimm0",
+        "endpoints":
+        [
+            {
+                "types":
+                {
+                    "rType": "inventory",
+                    "fType": "sensors"
+                },
+                "paths":
+                [
+                    "/xyz/openbmc_project/sensors/temperature/dimm0_temp"
+                ]
+            }
+        ]
+    },
+
+
+
+
+    {
+        "path": "system/chassis",
+        "endpoints":
+        [
+            {
+                "types":
+                {
+                    "rType": "chassis",
+                    "fType": "all_sensors"
+                },
+                "paths":
+                [
+                    "/xyz/openbmc_project/sensors/fan_tach/fan0_0",
+                    "/xyz/openbmc_project/sensors/fan_tach/fan0_1",
+
+                    "/xyz/openbmc_project/sensors/temperature/In_Temp",
+                    "/xyz/openbmc_project/sensors/temperature/MB_In1_Temp",
+
+                    "/xyz/openbmc_project/sensors/temperature/Psu_Temp",
+                    "/xyz/openbmc_project/sensors/temperature/Pci0_Temp",
+                    "/xyz/openbmc_project/sensors/temperature/Out_Temp",
+                    "/xyz/openbmc_project/sensors/temperature/MB_In0_Temp",
+
+
+
+                    "/xyz/openbmc_project/sensors/temperature/p0_core0_temp",
+
+                    "/xyz/openbmc_project/sensors/temperature/p1_core0_temp",
+
+
+
+                    "/xyz/openbmc_project/sensors/temperature/dimm0_temp",
+
+
+                    "/xyz/openbmc_project/sensors/voltage/p0_vdd_voltage",
+                    "/xyz/openbmc_project/sensors/voltage/p0_vcs_voltage",
+                    "/xyz/openbmc_project/sensors/voltage/p0_vddr_voltage",
+                    "/xyz/openbmc_project/sensors/voltage/p0_vdn_voltage",
+                    "/xyz/openbmc_project/sensors/voltage/p1_vcs_voltage",
+                    "/xyz/openbmc_project/sensors/voltage/p1_vdd_voltage",
+                    "/xyz/openbmc_project/sensors/voltage/p1_vddr_voltage",
+                    "/xyz/openbmc_project/sensors/voltage/p1_vdn_voltage",
+
+                    "/xyz/openbmc_project/sensors/power/p0_vdd_power",
+                    "/xyz/openbmc_project/sensors/power/p0_vcs_power",
+                    "/xyz/openbmc_project/sensors/power/p0_vddr_power",
+                    "/xyz/openbmc_project/sensors/power/p0_vdn_power",
+                    "/xyz/openbmc_project/sensors/power/p1_vdd_power",
+                    "/xyz/openbmc_project/sensors/power/p1_vcs_power",
+                    "/xyz/openbmc_project/sensors/power/p1_vddr_power",
+                    "/xyz/openbmc_project/sensors/power/p1_vdn_power",
+
+
+                    "/xyz/openbmc_project/sensors/temperature/p0_vcs_temp",
+                    "/xyz/openbmc_project/sensors/temperature/p0_vddr_temp",
+                    "/xyz/openbmc_project/sensors/temperature/p0_vdd_temp",
+                    "/xyz/openbmc_project/sensors/temperature/p0_vdn_temp",
+                    "/xyz/openbmc_project/sensors/temperature/p1_vcs_temp",
+                    "/xyz/openbmc_project/sensors/temperature/p1_vddr_temp",
+                    "/xyz/openbmc_project/sensors/temperature/p1_vdd_temp",
+                    "/xyz/openbmc_project/sensors/temperature/p1_vdn_temp",
+
+                    "/xyz/openbmc_project/sensors/current/p0_vcs_current",
+                    "/xyz/openbmc_project/sensors/current/p0_vddr_current",
+                    "/xyz/openbmc_project/sensors/current/p0_vdd_current",
+                    "/xyz/openbmc_project/sensors/current/p0_vdn_current",
+                    "/xyz/openbmc_project/sensors/current/p1_vcs_current",
+                    "/xyz/openbmc_project/sensors/current/p1_vddr_current",
+                    "/xyz/openbmc_project/sensors/current/p1_vdd_current",
+                    "/xyz/openbmc_project/sensors/current/p1_vdn_current",
+
+                    "/xyz/openbmc_project/sensors/power/fan_disk_power",
+                    "/xyz/openbmc_project/sensors/power/io_power",
+                    "/xyz/openbmc_project/sensors/power/total_power",
+                    "/xyz/openbmc_project/sensors/power/p0_io_power",
+                    "/xyz/openbmc_project/sensors/power/p0_mem_power",
+                    "/xyz/openbmc_project/sensors/power/p0_power",
+                    "/xyz/openbmc_project/sensors/power/p1_io_power",
+                    "/xyz/openbmc_project/sensors/power/p1_mem_power",
+
+                    "/xyz/openbmc_project/sensors/power/ps0_input_power",
+                    "/xyz/openbmc_project/sensors/power/ps1_input_power"
+
+                ]
+            }
+        ]
+    }
+]
