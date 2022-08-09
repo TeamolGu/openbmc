@@ -1,0 +1,27 @@
+From 99e68bc975024d9c9bdba2889405d7e5e81a33b1 Mon Sep 17 00:00:00 2001
+From: liyuxiang <yuxiang.li@luxshare-ict.com>
+Date: Fri, 15 Jul 2022 15:45:58 +0800
+Subject: [PATCH] disable watchdog2
+
+---
+ arch/arm/mach-aspeed/ast2500/platform.S | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/arch/arm/mach-aspeed/ast2500/platform.S b/arch/arm/mach-aspeed/ast2500/platform.S
+index aef55c4a0a..4fed994c4b 100644
+--- a/arch/arm/mach-aspeed/ast2500/platform.S
++++ b/arch/arm/mach-aspeed/ast2500/platform.S
+@@ -643,11 +643,11 @@ bypass_USB_init:
+  Disable WDT2 for 2nd boot function
+  ******************************************************************************/
+ /*
+-#ifndef CONFIG_FIRMWARE_2ND_BOOT
++#ifndef CONFIG_FIRMWARE_2ND_BOOT */
+     ldr   r0, =0x1e78502c
+     mov   r1, #0
+     str   r1, [r0]
+-#endif
++/* #endif
+ */
+ /******************************************************************************
+  Disable WDT3 for SPI Address mode (3 or 4 bytes) detection function
