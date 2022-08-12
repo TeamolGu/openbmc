@@ -1,32 +1,55 @@
-diff --git a/sensorhandler.cpp b/sensorhandler.cpp
-index 3217412..3449af6 100644
---- a/sensorhandler.cpp
-+++ b/sensorhandler.cpp
-@@ -1465,6 +1465,16 @@ ipmi_ret_t ipmicmdPlatformEvent(ipmi_netfn_t, ipmi_cmd_t,
-     return IPMI_CC_OK;
+diff --git a/apphandler.cpp b/apphandler.cpp
+index 0577c07..ce88ad4 100644
+--- a/apphandler.cpp
++++ b/apphandler.cpp
+@@ -9,6 +9,7 @@
+ #include <sys/types.h>
+ #include <systemd/sd-bus.h>
+ #include <unistd.h>
++#include <stdlib.h>
+ 
+ #include <algorithm>
+ #include <app/channel.hpp>
+@@ -1673,6 +1674,26 @@ ipmi::RspType<std::vector<uint8_t>>
+     return ipmi::responseSuccess(readBuf);
  }
  
 +ipmi::RspType<uint8_t,
 +              uint8_t,
 +              uint8_t,
-+              uint8_t,
++             uint8_t,
 +              uint8_t
 +              >ipmi_sensor_cmd_test()
 +{
 +    return ipmi::responseSuccess(0x1, 0x2, 0x3, 0x4, 0x5);
 +}
 +
- void register_netfn_sen_functions()
++ipmi::RspType<uint8_t>ipmi_system_cmd_reboot()
++{
++    int res = system("echo 'You've send the reboot CMD by ipmi'");
++    res = system("reboot");
++    log<level::ERR>("reboot=",
++        entry("reboot-return=%d", res));
++
++    return ipmi::responseSuccess(0x0);
++}
++
+ void register_netfn_app_functions()
  {
-     // Handlers with dbus-sdr handler implementation.
-@@ -1522,6 +1532,10 @@ void register_netfn_sen_functions()
-     ipmi::registerHandler(ipmi::prioOpenBmcBase, ipmi::netFnSensor,
-                           ipmi::sensor_event::cmdGetSensorType,
-                           ipmi::Privilege::User, ipmiGetSensorType);
+     // <Get Device ID>
+@@ -1757,5 +1778,15 @@ void register_netfn_app_functions()
+     ipmi::registerHandler(ipmi::prioOpenBmcBase, ipmi::netFnApp,
+                           ipmi::app::cmdSetSystemInfoParameters,
+                           ipmi::Privilege::Admin, ipmiAppSetSystemInfo);
++    // <OEM:App 03h Warm Reset>
++    ipmi::registerHandler(ipmi::prioOpenBmcBase, ipmi::netFnApp,
++                          0x03,
++                          ipmi::Privilege::User, ipmi_system_cmd_reboot);
++
 +    // <OEM:test>
-+    ipmi::registerHandler(ipmi::prioOpenBmcBase, ipmi::netFnSensor,
-+                          0x32,
++    ipmi::registerHandler(ipmi::prioOpenBmcBase, ipmi::netFnApp,
++                          0xFF,
 +                          ipmi::Privilege::User, ipmi_sensor_cmd_test);
- 
++
      return;
  }
