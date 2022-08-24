@@ -1,0 +1,26 @@
+From c53a551a36ec81e3532301e61e8b71d3e6717663 Mon Sep 17 00:00:00 2001
+From: IHAD <Cunjin.Tao@luxshare-ict.com>
+Date: Tue, 23 Aug 2022 22:38:14 -0700
+Subject: [PATCH] Add the enumeration element(CPLD)
+
+---
+ yaml/xyz/openbmc_project/Software/Version.interface.yaml | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/yaml/xyz/openbmc_project/Software/Version.interface.yaml b/yaml/xyz/openbmc_project/Software/Version.interface.yaml
+index 6176010..b655d13 100644
+--- a/yaml/xyz/openbmc_project/Software/Version.interface.yaml
++++ b/yaml/xyz/openbmc_project/Software/Version.interface.yaml
+@@ -38,6 +38,9 @@ enumerations:
+           - name: Host
+             description: >
+                 The version is a version for a managed host.
++          - name: CPLD
++            description: >
++                The version is a version for a managed CPLD.
+           - name: PSU
+             description: >
+                 The version is a version for a PSU.
+-- 
+2.17.1
+

@@ -1,0 +1,186 @@
+From e3893adde64f3db605ac533285f7be87c9df6057 Mon Sep 17 00:00:00 2001
+From: IHAD <Cunjin.Tao@luxshare-ict.com>
+Date: Tue, 23 Aug 2022 20:54:34 -0700
+Subject: [PATCH] Add the Bios and CPLD version paths
+
+---
+ item_updater.cpp                 | 34 ++++++++++++++++++++++++++++++++
+ item_updater.hpp                 | 23 +++++++++++++++++++++
+ meson.build                      | 11 +++++++++++
+ meson_options.txt                |  9 +++++++++
+ obmc-flash-host-cpld@.service.in |  7 +++++++
+ 5 files changed, 84 insertions(+)
+ create mode 100644 obmc-flash-host-cpld@.service.in
+
+diff --git a/item_updater.cpp b/item_updater.cpp
+index c8fda76..0918b16 100644
+--- a/item_updater.cpp
++++ b/item_updater.cpp
+@@ -867,6 +867,40 @@ void ItemUpdater::createBIOSObject()
+ }
+ #endif
+ 
++#ifdef HOST_CPLD_UPGRADE
++void ItemUpdater::createCPLDObject()
++{
++    std::string path = CPLD_OBJPATH;
++    // Get version id from last item in the path
++    auto pos = path.rfind("/");
++    if (pos == std::string::npos)
++    {
++        error("No version id found in object path {PATH}", "PATH", path);
++        return;
++    }
++
++    createActiveAssociation(path);
++    createFunctionalAssociation(path);
++
++    auto versionId = path.substr(pos + 1);
++    auto version = "null";
++    AssociationList assocs = {};
++    cpldActivation = std::make_unique<Activation>(
++        bus, path, *this, versionId, server::Activation::Activations::Active,
++        assocs);
++    auto dummyErase = [](std::string /*entryId*/) {
++        // Do nothing;
++    };
++    cpldVersion = std::make_unique<VersionClass>(
++        bus, path, version, VersionPurpose::CPLD, "", "",
++        std::vector<std::string>(),
++        std::bind(dummyErase, std::placeholders::_1), "");
++    cpldVersion->deleteObject =
++        std::make_unique<phosphor::software::manager::Delete>(bus, path,
++                                                              *cpldVersion);
++}
++#endif
++
+ void ItemUpdater::getRunningSlot()
+ {
+     // Check /run/media/slot to get the slot number
+diff --git a/item_updater.hpp b/item_updater.hpp
+index ccacd28..5e80b07 100644
+--- a/item_updater.hpp
++++ b/item_updater.hpp
+@@ -67,6 +67,12 @@ class ItemUpdater : public ItemUpdaterInherit
+         restoreFieldModeStatus();
+ #ifdef HOST_BIOS_UPGRADE
+         createBIOSObject();
++#endif
++#ifdef HOST_CPLD_UPGRADE
++        createCPLDObject();
++#endif
++#ifdef HOST_FPGA_UPGRADE
++        createFPGAObject();
+ #endif
+         emit_object_added();
+     };
+@@ -280,6 +286,23 @@ class ItemUpdater : public ItemUpdaterInherit
+     std::unique_ptr<VersionClass> biosVersion;
+ #endif
+ 
++#ifdef HOST_CPLD_UPGRADE
++    /** @brief Create the BIOS object without knowing the version.
++     *
++     *  The object is created only to provide the DBus access so that an
++     *  external service could set the correct BIOS version.
++     *  On BIOS code update, the version is updated accordingly.
++     */
++    void createCPLDObject();
++
++    /** @brief Persistent Activation D-Bus object for BIOS */
++    std::unique_ptr<Activation> cpldActivation;
++
++  public:
++    /** @brief Persistent Version D-Bus object for BIOS */
++    std::unique_ptr<VersionClass> cpldVersion;
++#endif
++
+     /** @brief Get the slot number of running image */
+     void getRunningSlot();
+ };
+diff --git a/meson.build b/meson.build
+index 0dca8c0..7b49237 100644
+--- a/meson.build
++++ b/meson.build
+@@ -67,6 +67,7 @@ conf.set('MMC_LAYOUT', get_option('bmc-layout').contains('mmc'))
+ 
+ # Configurable features
+ conf.set('HOST_BIOS_UPGRADE', get_option('host-bios-upgrade').enabled())
++conf.set('HOST_CPLD_UPGRADE', get_option('host-cpld-upgrade').enabled())
+ conf.set('WANT_SIGNATURE_VERIFY', \
+     get_option('verify-signature').enabled() or \
+     get_option('verify-full-signature').enabled())
+@@ -96,6 +97,10 @@ if get_option('host-bios-upgrade').enabled()
+     conf.set_quoted('BIOS_OBJPATH', get_option('bios-object-path'))
+ endif
+ 
++if get_option('host-cpld-upgrade').enabled()
++    conf.set_quoted('CPLD_OBJPATH', get_option('cpld-object-path'))
++endif
++
+ if get_option('bmc-static-dual-image').enabled()
+   conf.set('BMC_STATIC_DUAL_IMAGE', get_option('bmc-static-dual-image').enabled())
+   conf.set_quoted('ALT_ROFS_DIR', get_option('alt-rofs-dir'))
+@@ -154,6 +159,8 @@ unit_files = [
+     'xyz.openbmc_project.Software.Version.service.in'
+ ]
+ 
++unit_expand_files = []
++
+ subdir('xyz/openbmc_project/Software/Image')
+ 
+ image_updater_sources = files(
+@@ -207,6 +214,10 @@ if get_option('host-bios-upgrade').enabled()
+     unit_files += 'obmc-flash-host-bios@.service.in'
+ endif
+ 
++if get_option('host-cpld-upgrade').enabled()
++    unit_files += 'obmc-flash-host-cpld@.service.in'
++endif
++
+ if get_option('bmc-static-dual-image').enabled()
+     unit_files += [
+         'static/obmc-flash-bmc-alt@.service.in',
+diff --git a/meson_options.txt b/meson_options.txt
+index e9eecff..4957b29 100644
+--- a/meson_options.txt
++++ b/meson_options.txt
+@@ -12,6 +12,9 @@ option('bmc-layout', type: 'combo',
+ option('host-bios-upgrade', type: 'feature', value: 'enabled',
+     description: 'Enable host bios upgrade support.')
+ 
++option('host-cpld-upgrade', type: 'feature', value: 'enabled',
++    description: 'Enable host cpld upgrade support.')
++
+ option('sync-bmc-files', type: 'feature', value: 'enabled',
+     description: 'Enable sync of filesystem files.')
+ 
+@@ -120,6 +123,12 @@ option(
+     description: 'The BIOS DBus object path.',
+ )
+ 
++option(
++    'cpld-object-path', type: 'string',
++    value: '/xyz/openbmc_project/software/cpld_active',
++    description: 'The CPLD DBus object path.',
++)
++
+ option('bmc-static-dual-image', type: 'feature', value: 'enabled',
+     description: 'Enable the dual image support for static layout.')
+ 
+diff --git a/obmc-flash-host-cpld@.service.in b/obmc-flash-host-cpld@.service.in
+new file mode 100644
+index 0000000..deebd0d
+--- /dev/null
++++ b/obmc-flash-host-cpld@.service.in
+@@ -0,0 +1,7 @@
++[Unit]
++Description=Flash Host CPLD image %I to Host
++
++[Service]
++Type=oneshot
++RemainAfterExit=no
++ExecStart=echo Please add custom command for flashing image /tmp/image/%i
+-- 
+2.17.1
+
