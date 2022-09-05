@@ -1,0 +1,403 @@
+From 303b8bf8ee0113267bb296213ee0bb04a5a4829d Mon Sep 17 00:00:00 2001
+From: IHAD <Cunjin.Tao@luxshare-ict.com>
+Date: Mon, 5 Sep 2022 03:35:01 -0700
+Subject: [PATCH] Added the support for upgrading CPLD and BIOS firmware
+
+---
+ activation.cpp                   |  94 ++++++++++++++++-
+ activation.hpp                   |   8 ++
+ gen-bios-tar                     |   2 +-
+ gen-cpld-tar                     | 171 +++++++++++++++++++++++++++++++
+ item_updater.cpp                 |   4 +
+ obmc-flash-host-bios@.service.in |   2 +-
+ obmc-flash-host-cpld@.service.in |   2 +-
+ 7 files changed, 278 insertions(+), 5 deletions(-)
+ create mode 100755 gen-cpld-tar
+
+diff --git a/activation.cpp b/activation.cpp
+index e057814..c7a359e 100644
+--- a/activation.cpp
++++ b/activation.cpp
+@@ -135,8 +135,8 @@ auto Activation::activation(Activations value) -> Activations
+                 std::make_unique<ActivationBlocksTransition>(bus, path);
+         }
+ 
+-#ifdef HOST_BIOS_UPGRADE
+         auto purpose = parent.versions.find(versionId)->second->purpose();
++#ifdef HOST_BIOS_UPGRADE
+         if (purpose == VersionPurpose::Host)
+         {
+             // Enable systemd signals
+@@ -152,6 +152,22 @@ auto Activation::activation(Activations value) -> Activations
+         }
+ #endif
+ 
++#ifdef HOST_CPLD_UPGRADE
++        if (purpose == VersionPurpose::CPLD)
++        {
++            // Enable systemd signals
++            subscribeToSystemdSignals();
++
++            // Set initial progress
++            activationProgress->progress(20);
++
++            // Initiate image writing to flash
++            flashWriteCpld();
++
++            return softwareServer::Activation::activation(value);
++        }
++#endif
++
+         activationProgress->progress(10);
+ 
+         parent.freeSpace(*this);
+@@ -319,8 +335,8 @@ void Activation::unitStateChange(sdbusplus::message::message& msg)
+         return;
+     }
+ 
+-#ifdef HOST_BIOS_UPGRADE
+     auto purpose = parent.versions.find(versionId)->second->purpose();
++#ifdef HOST_BIOS_UPGRADE
+     if (purpose == VersionPurpose::Host)
+     {
+         onStateChangesBios(msg);
+@@ -328,6 +344,14 @@ void Activation::unitStateChange(sdbusplus::message::message& msg)
+     }
+ #endif
+ 
++#ifdef HOST_CPLD_UPGRADE
++    if (purpose == VersionPurpose::CPLD)
++    {
++        onStateChangesCpld(msg);
++        return;
++    }
++#endif
++
+     onStateChanges(msg);
+ 
+     return;
+@@ -467,6 +491,72 @@ void Activation::onStateChangesBios(sdbusplus::message::message& msg)
+ 
+ #endif
+ 
++#ifdef HOST_CPLD_UPGRADE
++void Activation::flashWriteCpld()
++{
++    auto method = bus.new_method_call(SYSTEMD_BUSNAME, SYSTEMD_PATH,
++                                      SYSTEMD_INTERFACE, "StartUnit");
++    auto cpldServiceFile = "obmc-flash-host-cpld@" + versionId + ".service";
++    method.append(cpldServiceFile, "replace");
++    try
++    {
++        auto reply = bus.call(method);
++    }
++    catch (const sdbusplus::exception::exception& e)
++    {
++        error("Error in trying to upgrade Host Cpld: {ERROR}", "ERROR", e);
++        report<InternalFailure>();
++    }
++}
++
++void Activation::onStateChangesCpld(sdbusplus::message::message& msg)
++{
++    uint32_t newStateID{};
++    sdbusplus::message::object_path newStateObjPath;
++    std::string newStateUnit{};
++    std::string newStateResult{};
++
++    // Read the msg and populate each variable
++    msg.read(newStateID, newStateObjPath, newStateUnit, newStateResult);
++
++    auto cpldServiceFile = "obmc-flash-host-cpld@" + versionId + ".service";
++
++    if (newStateUnit == cpldServiceFile)
++    {
++        // unsubscribe to systemd signals
++        unsubscribeFromSystemdSignals();
++
++        if (newStateResult == "done")
++        {
++            // Set activation progress to 100
++            activationProgress->progress(100);
++
++            // Set Activation value to active
++            activation(softwareServer::Activation::Activations::Active);
++
++            info("Cpld upgrade completed successfully.");
++            parent.cpldVersion->version(
++                parent.versions.find(versionId)->second->version());
++
++            // Delete the uploaded activation
++            boost::asio::post(getIOContext(), [this]() {
++                this->parent.erase(this->versionId);
++            });
++        }
++        else if (newStateResult == "failed")
++        {
++            // Set Activation value to Failed
++            activation(softwareServer::Activation::Activations::Failed);
++
++            error("Cpld upgrade failed.");
++        }
++    }
++
++    return;
++}
++
++#endif
++
+ void Activation::rebootBmc()
+ {
+     auto method = bus.new_method_call(SYSTEMD_BUSNAME, SYSTEMD_PATH,
+diff --git a/activation.hpp b/activation.hpp
+index 7425a54..01f30da 100644
+--- a/activation.hpp
++++ b/activation.hpp
+@@ -248,6 +248,14 @@ class Activation : public ActivationInherit, public Flash
+     void onStateChangesBios(sdbusplus::message::message&);
+ #endif
+ 
++#ifdef HOST_CPLD_UPGRADE
++    /* @brief write to Host flash function */
++    void flashWriteCpld();
++
++    /** @brief Function that acts on Bios upgrade service file state changes */
++    void onStateChangesCpld(sdbusplus::message::message&);
++#endif
++
+     /** @brief Overloaded function that acts on service file state changes */
+     void onStateChanges(sdbusplus::message::message&) override;
+ 
+diff --git a/gen-bios-tar b/gen-bios-tar
+index 837d496..16f6fbe 100755
+--- a/gen-bios-tar
++++ b/gen-bios-tar
+@@ -167,5 +167,5 @@ if [[ "${do_sign}" == true ]]; then
+   additional_files="*.sig"
+ fi
+ 
+-tar -czvf "$outfile" "$files_to_sign" "$additional_files"
++tar -czvf $outfile $files_to_sign $additional_files
+ echo "Bios image tarball is at $outfile"
+diff --git a/gen-cpld-tar b/gen-cpld-tar
+new file mode 100755
+index 0000000..65c13ce
+--- /dev/null
++++ b/gen-cpld-tar
+@@ -0,0 +1,171 @@
++#!/bin/bash
++set -eo pipefail
++
++help=$'Generate Tarball with Cpld image and MANIFEST Script
++
++Generates a Cpld image tarball from given file as input.
++Creates a MANIFEST for image verification and recreation
++Packages the image and MANIFEST together in a tarball
++
++usage: gen-cpld-tar [OPTION] <Cpld FILE>...
++
++Options:
++   -o, --out <file>       Specify destination file. Defaults to
++                          `pwd`/obmc-cpld.tar.gz if unspecified.
++   -s, --sign <path>      Sign the image. The optional path argument specifies
++                          the private key file. Defaults to the bash variable
++                          PRIVATE_KEY_PATH if available, or else uses the
++                          open-source private key in this script.
++   -m, --machine <name>   Optionally specify the target machine name of this
++                          image.
++   -v, --version <name>   Specify the version of cpld image file
++   -h, --help             Display this help text and exit.
++'
++
++#################################################################
++# It's the OpenBMC "public" private key (currently under
++# meta-phosphor/recipes-phosphor/flash/files/OpenBMC.priv):
++# https://gerrit.openbmc-project.xyz/c/openbmc/openbmc/+/8949/15/
++# meta-phosphor/common/recipes-phosphor/flash/files/OpenBMC.priv
++#
++#################################################################
++private_key=$'-----BEGIN PRIVATE KEY-----
++MIICdwIBADANBgkqhkiG9w0BAQEFAASCAmEwggJdAgEAAoGBAPvSDLu6slkP1gri
++PaeQXL9ysD69J/HjbBCIQ0RPfeWBb75US1tRTjPP0Ub8CtH8ExVf8iF1ulsZA78B
++zIjBYZVp9pyD6LbpZ/hjV7rIH6dTNhoVpdA+F8LzmQ7cyhHG8l2JMvdunwF2uX5k
++D4WDcZt/ITKZNQNavPtmIyD5HprdAgMBAAECgYEAuQkTSi5ZNpAoWz76xtGRFSwU
++zUT4wQi3Mz6tDtjKTYXasiQGa0dHC1M9F8fDu6BZ9W7W4Dc9hArRcdzEighuxoI/
++nZI/0uL89iUEywnDEIHuS6D5JlZaj86/nx9YvQnO8F/seM+MX0EAWVrd5wC7aAF1
++h6Fu7ykZB4ggUjQAWwECQQD+AUiDOEO+8btLJ135dQfSGc5VFcZiequnKWVm6uXt
++rX771hEYjYMjLqWGFg9G4gE3GuABM5chMINuQQUivy8tAkEA/cxfy19XkjtqcMgE
++x/UDt6Nr+Ky/tk+4Y65WxPRDas0uxFOPk/vEjgVmz1k/TAy9G4giisluTvtmltr5
++DCLocQJBAJnRHx9PiD7uVhRJz6/L/iNuOzPtTsi+Loq5F83+O6T15qsM1CeBMsOw
++cM5FN5UeMcwz+yjfHAsePMkcmMaU7jUCQHlg9+N8upXuIo7Dqj2zOU7nMmkgvSNE
++5yuNImRZabC3ZolwaTdd7nf5r1y1Eyec5Ag5yENV6JKPe1Xkbb1XKJECQDngA0h4
++6ATvfP1Vrx4CbP11eKXbCsZ9OGPHSgyvVjn68oY5ZP3uPsIattoN7dE2BRfuJm7m
++F0nIdUAhR0yTfKM=
++-----END PRIVATE KEY-----
++'
++
++do_sign=false
++PRIVATE_KEY_PATH=${PRIVATE_KEY_PATH:-}
++private_key_path="${PRIVATE_KEY_PATH}"
++outfile=""
++machine=""
++version=""
++
++while [[ $# -gt 0 ]]; do
++  key="$1"
++  case $key in
++    -o|--out)
++      outfile="$2"
++      shift 2
++      ;;
++    -s|--sign)
++      do_sign=true
++      if [[ -n "${2}"  && "${2}" != -* ]]; then
++        private_key_path="$2"
++        shift 2
++      else
++        shift 1
++      fi
++      ;;
++    -m|--machine)
++      machine="$2"
++      shift 2
++      ;;
++    -v|--version)
++      version="$2"
++      shift 2
++      ;;
++    -h|--help)
++      echo "$help"
++      exit
++      ;;
++    -*)
++      echo "Unrecognised option $1"
++      echo "$help"
++      exit
++      ;;
++    *)
++      file="$1"
++      shift 1
++      ;;
++  esac
++done
++
++if [ ! -f "${file}" ]; then
++  echo "${file} not found, Please enter a valid Cpld image file"
++  echo "$help"
++  exit 1
++fi
++
++if [[ -z $version ]]; then
++  echo "Please provide version of image with -v option"
++  exit 1
++fi
++
++if [[ -z $outfile ]]; then
++  outfile=$(pwd)/obmc-cpld.tar.gz
++else
++  if [[ $outfile != /* ]]; then
++    outfile=$(pwd)/$outfile
++  fi
++fi
++
++scratch_dir=$(mktemp -d)
++# Remove the temp directory on exit.
++# The files in the temp directory may contain read-only files, so add
++# --interactive=never to skip the prompt.
++trap '{ rm -r --interactive=never ${scratch_dir}; }' EXIT
++
++if [[ "${do_sign}" == true ]]; then
++  if [[ -z "${private_key_path}" ]]; then
++    private_key_path=${scratch_dir}/OpenBMC.priv
++    echo "${private_key}" > "${private_key_path}"
++    echo "Image is NOT secure!! Signing with the open private key!"
++  else
++    if [[ ! -f "${private_key_path}" ]]; then
++      echo "Couldn't find private key ${private_key_path}."
++      exit 1
++    fi
++
++    echo "Signing with ${private_key_path}."
++  fi
++
++  public_key_file=publickey
++  public_key_path=${scratch_dir}/$public_key_file
++  openssl pkey -in "${private_key_path}" -pubout -out "${public_key_path}"
++fi
++
++manifest_location="MANIFEST"
++files_to_sign="$manifest_location $public_key_file"
++
++# Go to scratch_dir
++cp "${file}" "${scratch_dir}"
++cd "${scratch_dir}"
++files_to_sign+=" $(basename "${file}")"
++
++echo "Creating MANIFEST for the image"
++echo -e "purpose=xyz.openbmc_project.Software.Version.VersionPurpose.CPLD\n\
++version=$version" > $manifest_location
++
++if [[ -n "${machine}" ]]; then
++    echo -e "MachineName=${machine}" >> $manifest_location
++fi
++
++if [[ "${do_sign}" == true ]]; then
++  private_key_name=$(basename "${private_key_path}")
++  key_type="${private_key_name%.*}"
++  echo KeyType="${key_type}" >> $manifest_location
++  echo HashType="RSA-SHA256" >> $manifest_location
++
++  for file in $files_to_sign; do
++    openssl dgst -sha256 -sign "${private_key_path}" -out "${file}.sig" "$file"
++  done
++
++  additional_files="*.sig"
++fi
++
++tar -czvf $outfile $files_to_sign $additional_files
++echo "Cpld image tarball is at $outfile"
+diff --git a/item_updater.cpp b/item_updater.cpp
+index 0918b16..b83e5cf 100644
+--- a/item_updater.cpp
++++ b/item_updater.cpp
+@@ -19,6 +19,7 @@
+ #include <queue>
+ #include <set>
+ #include <string>
++#include <iostream>
+ 
+ namespace phosphor
+ {
+@@ -71,6 +72,9 @@ void ItemUpdater::createActivation(sdbusplus::message::message& msg)
+                     if (value == VersionPurpose::BMC ||
+ #ifdef HOST_BIOS_UPGRADE
+                         value == VersionPurpose::Host ||
++#endif
++#ifdef HOST_CPLD_UPGRADE
++                        value == VersionPurpose::CPLD ||
+ #endif
+                         value == VersionPurpose::System)
+                     {
+diff --git a/obmc-flash-host-bios@.service.in b/obmc-flash-host-bios@.service.in
+index 13a01af..2f4ca39 100644
+--- a/obmc-flash-host-bios@.service.in
++++ b/obmc-flash-host-bios@.service.in
+@@ -4,4 +4,4 @@ Description=Flash Host Bios image %I to Host
+ [Service]
+ Type=oneshot
+ RemainAfterExit=no
+-ExecStart=echo Please add custom command for flashing image /tmp/image/%i
++ExecStart=/usr/bin/obmc-flash-host-bios.sh %i
+diff --git a/obmc-flash-host-cpld@.service.in b/obmc-flash-host-cpld@.service.in
+index deebd0d..b1e92d5 100644
+--- a/obmc-flash-host-cpld@.service.in
++++ b/obmc-flash-host-cpld@.service.in
+@@ -4,4 +4,4 @@ Description=Flash Host CPLD image %I to Host
+ [Service]
+ Type=oneshot
+ RemainAfterExit=no
+-ExecStart=echo Please add custom command for flashing image /tmp/image/%i
++ExecStart=/usr/bin/obmc-flash-host-cpld.sh %i
+-- 
+2.17.1
+

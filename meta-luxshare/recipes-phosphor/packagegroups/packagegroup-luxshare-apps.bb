@@ -34,6 +34,7 @@ RDEPENDS:${PN}-fans = " \
 SUMMARY:${PN}-flash = "Luxshare Flash"
 RDEPENDS:${PN}-flash = " \
         phosphor-software-manager \
+		phosphor-software-manager-sync \
         "
 
 SUMMARY:${PN}-system = "Luxshare System"
