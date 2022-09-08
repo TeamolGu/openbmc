@@ -240,6 +240,12 @@
 			"CPU0_BMC_SMI_N","CPU0_BMC_IERR_N","CPU0_BMC_TIMESYNC","FM_BMC_READ_SPD_TEMP",
 	/*AB0-AB7*/	"BMC_HDT_RESET_N","BMC_HDT_PWROK","BMC_ARM_WDOG","RVD_BMC_CPLD_GPIO2","","","","",
 	/*AC0-AC7*/	"","","","","","","","RST_BMC_LPC_R_N";
+	ready_out {
+		gpio-hog;
+		gpios = <ASPEED_GPIO(E, 1) GPIO_ACTIVE_LOW>;
+		output-high;
+		line-name = "BMC_READY_OUT_N";
+	};
 };
 
 &kcs1 {
@@ -286,7 +292,7 @@
 
 &uart2 {
 	status = "okay";
-	pinctrl-names = "default";
+	/*pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_txd2_default
 			&pinctrl_rxd2_default
 			&pinctrl_nrts2_default
@@ -294,7 +300,7 @@
 			&pinctrl_ndsr2_default
 			&pinctrl_ncts2_default
 			&pinctrl_ndcd2_default
-			&pinctrl_nri2_default>;
+			&pinctrl_nri2_default>;*/
 };
 
 &uart3 {
