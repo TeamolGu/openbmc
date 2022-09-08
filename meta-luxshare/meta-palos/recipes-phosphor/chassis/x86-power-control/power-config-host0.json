@@ -2,45 +2,51 @@
   "gpio_configs": [
     {
       "Name" : "NMIButton",
-      "LineName" : "NMI_BUTTON",
+      "LineName" : "NMI_SW_N",
       "Type" : "GPIO",
       "Polarity" : "ActiveLow"
     },
     {
       "Name" : "NMIOut",
-      "LineName" : "NMI_OUT",
+      "LineName" : "BMC_NMI_OUT_N",
       "Type" : "GPIO",
       "Polarity" : "ActiveHigh"
     },
     {
       "Name" : "PostComplete",
-      "LineName" : "POST_COMPLETE",
+      "LineName" : "BIOS_MEMTEMP_READY_OUT",
       "Type" : "GPIO",
       "Polarity" : "ActiveLow"
     },
     {
       "Name" : "PowerButton",
-      "LineName" : "POWER_BUTTON",
+      "LineName" : "BTN_PWRON_SSIFP2CPLD_R_N",
       "Type" : "GPIO",
       "Polarity" : "ActiveLow"
     },
     {
       "Name" : "PowerOk",
-      "LineName" : "PS_PWROK",
+      "LineName" : "PGD_SYS_PWROK",
       "Type" : "GPIO",
       "Polarity" : "ActiveHigh"
     },
     {
       "Name" : "PowerOut",
-      "LineName" : "POWER_OUT",
+      "LineName" : "PWR_BTN_BMC_OUT_N",
       "Type" : "GPIO",
       "Polarity" : "ActiveLow"
     },
     {
       "Name" : "ResetOut",
-      "LineName" : "RESET_OUT",
+      "LineName" : "RST_BTN_BMC_OUT_N",
       "Type" : "GPIO",
       "Polarity" : "ActiveLow"
+    },
+    {
+      "Name": "ResetButton",
+      "LineName": "BTN_SYSRST_RC_N",
+      "Type": "GPIO",
+      "Polarity": "ActiveLow"
     }
   ]
 }
