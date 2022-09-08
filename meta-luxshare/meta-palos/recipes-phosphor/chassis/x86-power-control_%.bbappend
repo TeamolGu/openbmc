@@ -1,6 +1,7 @@
 FILESEXTRAPATHS:prepend := "${THISDIR}/${PN}:"
 
 SRC_URI += " file://power-config-host0.json"
+SRC_URI += " file://0001-modify-PowerPulseMs-time-200-to-1000.patch"
 
 do_install:append() {
 	    install -d ${D}/usr/share/x86-power-control/
