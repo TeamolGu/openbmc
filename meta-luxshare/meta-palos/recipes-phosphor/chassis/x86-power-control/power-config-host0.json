@@ -10,7 +10,7 @@
       "Name" : "NMIOut",
       "LineName" : "BMC_NMI_OUT_N",
       "Type" : "GPIO",
-      "Polarity" : "ActiveHigh"
+      "Polarity" : "ActiveLow"
     },
     {
       "Name" : "PostComplete",
