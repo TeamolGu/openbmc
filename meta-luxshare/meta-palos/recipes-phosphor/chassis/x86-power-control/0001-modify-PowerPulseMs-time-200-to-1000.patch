@@ -44,15 +44,6 @@ index 05aa45c..cc36f30 100644
      // If the requested GPIO is masked, use the mask line to set the output
      if (powerButtonMask && config.lineName == powerOutConfig.lineName)
      {
-@@ -1624,7 +1627,7 @@ static void currentHostStateMonitor()
-                 // Set the restart cause set for this restart
-                 setRestartCause();
- #ifdef USE_ACBOOT
--                resetACBootProperty();
-+               // resetACBootProperty();
- #endif // USE_ACBOOT
-                 sd_journal_send("MESSAGE=Host system DC power is off",
-                                 "PRIORITY=%i", LOG_INFO,
 @@ -1662,6 +1665,7 @@ static void sioPowerGoodWatchdogTimerStart()
  static void powerStateOn(const Event event)
  {
