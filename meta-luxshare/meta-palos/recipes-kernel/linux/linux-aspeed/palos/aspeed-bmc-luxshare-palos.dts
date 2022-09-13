@@ -250,12 +250,12 @@
 
 &kcs1 {
 	aspeed,lpc-io-reg = <0xCA0>;
-	status = "okay";
+	status = "disabled";
 };
 
 &kcs2 {
 	aspeed,lpc-io-reg = <0xCA8>;
-	status = "okay";
+	status = "disabled";
 };
 
 &kcs3 {
@@ -270,7 +270,7 @@
 
 &lpc_snoop {
 	snoop-ports = <0x80>;
-	status = "okay";
+	status = "disabled";
 };
 
 &lpc_ctrl {
@@ -350,7 +350,7 @@
 		compatible = "atmel,24c512";
 		pagesize = <128>;
 		reg = <0x53>;
-		wp-gpios = <&gpio ASPEED_GPIO(A, 0) GPIO_ACTIVE_LOW>;
+		wp-gpios = <&gpio ASPEED_GPIO(A, 0) GPIO_ACTIVE_HIGH>;
 		num-addresses = <16>;
 		lable = "fru";
 	};

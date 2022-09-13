@@ -2,6 +2,8 @@ FILESEXTRAPATHS:prepend := "${THISDIR}/${PN}:"
 
 DEPENDS:append:palos= " palos-yaml-config"
 
+SRCREV = "a23af1206bc4c835516909c87c71be0e7428264c"
+
 EXTRA_OEMESON:palos= " \
     -Dsensor-yaml-gen=${STAGING_DIR_HOST}${datadir}/palos-yaml-config/ipmi-sensors.yaml \
     -Dinvsensor-yaml-gen=${STAGING_DIR_HOST}${datadir}/palos-yaml-config/ipmi-inventory-sensors.yaml \
