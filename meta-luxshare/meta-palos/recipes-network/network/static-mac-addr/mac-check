@@ -15,6 +15,11 @@
 
 SOFS_MNT=/var/sofs
 SOFS_MACDIR=${SOFS_MNT}/factory-settings/network/mac
+EEPROM_BUS=3
+EEPROM_ADDR=53  #Hex address
+EEPROM_FILE=/sys/bus/i2c/devices/${EEPROM_BUS}-00${EEPROM_ADDR}/eeprom
+BASE_MAC_OFFSET=0x1000
+
 
 read_hw_mac() {
 	local iface="$1"
@@ -24,11 +29,13 @@ read_hw_mac() {
 set_hw_mac() {
 	local iface="$1"
 	local mac="$2"
-	ip link show dev "$iface" | grep -q "${iface}:.*\<UP\>" 2>/dev/null
-	local up=$?
-	[[ $up -eq 0 ]] && ip link set dev "$iface" down
-	ip link set dev "$iface" address "$mac"
-	[[ $up -eq 0 ]] && ip link set dev "$iface" up
+	if ! read_hw_mac $iface | grep -i $mac; then
+		ip link show dev "$iface" | grep -q "${iface}:.*\<UP\>" 2>/dev/null
+		local up=$?
+		[[ $up -eq 0 ]] && ip link set dev "$iface" down
+		ip link set dev "$iface" address "$mac"
+		[[ $up -eq 0 ]] && ip link set dev "$iface" up
+	fi
 }
 
 read_sofs_mac() {
@@ -44,21 +51,32 @@ read_fw_env_mac() {
 set_fw_env_mac() {
 	local envname="$1"
 	local mac="$2"
-	fw_setenv "$envname" "$mac"
+	if ! read_fw_env_mac $envname | grep -i $mac; then
+		fw_setenv "$envname" "$mac"
+	fi
 }
 read_eeprom_mac() {
 	local iface="$1"
-	a=0
+	a="$BASE_MAC_OFFSET"
 	if [ $iface = "eth1" ];then
-		a=8
+		a=`printf "0x%04X" $((a+8))`
 	fi
-	for  ((i=a;i <= ((7+a));i++));do
-		i2cset -y 1 0x50 0x00 $i
-		tmp=`i2cget -y 1 0x50`
-		local mac[$i]=${tmp:2}
-		local mac_str=$mac_str:${mac[$i]}
+
+	if [ -f $EEPROM_FILE ];then
+		tmp=`hexdump -s $a -n 6  -v -e '/1 "0x%02x "' $EEPROM_FILE`
+     else
+        offset1=${a:0:4}
+        offset2=${a:4:2}
+        tmp=`i2ctransfer -y -f $EEPROM_BUS w2@0x${EEPROM_ADDR} $offset1 0x${offset2} r6`
+    fi
+
+	for str in ${tmp[@]};do
+		local mac=${str:2:2}
+		local mac_str=$mac_str:$mac
 	done
+
 	mac_str=${mac_str:1:17}
+
 	echo $mac_str 2>/dev/null
 }
 
@@ -124,7 +142,7 @@ while read IFACE UBDEV; do
 		first_error_seen=$error
 	fi
 done <<-END_CONF
-	eth0 eth1addr
-	eth1 ethaddr
+	eth0 ethaddr
+	eth1 eth1addr
 END_CONF
 exit $first_error_seen
