@@ -1,0 +1,2560 @@
+From 2e8fb4a485a198789b3e2c4e4bffc1f0066761a8 Mon Sep 17 00:00:00 2001
+From: IHAD <Cunjin.Tao@luxshare-ict.com>
+Date: Mon, 26 Sep 2022 02:52:40 -0700
+Subject: [PATCH 1/1] add cpld_update_tool for cpld
+
+---
+ cpld-update-tool/cpld_update/api.cpp          | 221 +++++
+ cpld-update-tool/cpld_update/api.hpp          |   6 +
+ cpld-update-tool/cpld_update/cmds.cpp         | 921 ++++++++++++++++++
+ cpld-update-tool/cpld_update/cmds.hpp         |  67 ++
+ cpld-update-tool/cpld_update/global.cpp       |  15 +
+ cpld-update-tool/cpld_update/loadfromfile.cpp |  58 ++
+ cpld-update-tool/cpld_update/loadfromfile.hpp |   5 +
+ cpld-update-tool/cpld_update/loadjed.cpp      | 240 +++++
+ cpld-update-tool/cpld_update/loadjed.hpp      |  57 ++
+ cpld-update-tool/cpld_update/main.cpp         |  54 +
+ cpld-update-tool/cpld_update/tags             |  45 +
+ cpld-update-tool/i2c_tool/i2c_msg.cpp         |  84 ++
+ cpld-update-tool/i2c_tool/i2c_msg.hpp         |  36 +
+ cpld-update-tool/i2c_tool/i2c_tool.cpp        |  95 ++
+ cpld-update-tool/i2c_tool/i2c_tool.hpp        |  52 +
+ cpld-update-tool/jed_load/loadjed.hpp         | 321 ++++++
+ cpld-update-tool/jed_load/main.cpp            |  13 +
+ cpld-update-tool/machxoinfo.hpp               |  65 ++
+ cpld-update-tool/meson.build                  |  34 +
+ 19 files changed, 2389 insertions(+)
+ create mode 100644 cpld-update-tool/cpld_update/api.cpp
+ create mode 100644 cpld-update-tool/cpld_update/api.hpp
+ create mode 100644 cpld-update-tool/cpld_update/cmds.cpp
+ create mode 100644 cpld-update-tool/cpld_update/cmds.hpp
+ create mode 100644 cpld-update-tool/cpld_update/global.cpp
+ create mode 100644 cpld-update-tool/cpld_update/loadfromfile.cpp
+ create mode 100644 cpld-update-tool/cpld_update/loadfromfile.hpp
+ create mode 100644 cpld-update-tool/cpld_update/loadjed.cpp
+ create mode 100644 cpld-update-tool/cpld_update/loadjed.hpp
+ create mode 100644 cpld-update-tool/cpld_update/main.cpp
+ create mode 100644 cpld-update-tool/cpld_update/tags
+ create mode 100644 cpld-update-tool/i2c_tool/i2c_msg.cpp
+ create mode 100644 cpld-update-tool/i2c_tool/i2c_msg.hpp
+ create mode 100644 cpld-update-tool/i2c_tool/i2c_tool.cpp
+ create mode 100644 cpld-update-tool/i2c_tool/i2c_tool.hpp
+ create mode 100644 cpld-update-tool/jed_load/loadjed.hpp
+ create mode 100644 cpld-update-tool/jed_load/main.cpp
+ create mode 100644 cpld-update-tool/machxoinfo.hpp
+ create mode 100644 cpld-update-tool/meson.build
+
+diff --git a/cpld-update-tool/cpld_update/api.cpp b/cpld-update-tool/cpld_update/api.cpp
+new file mode 100644
+index 0000000..b845a25
+--- /dev/null
++++ b/cpld-update-tool/cpld_update/api.cpp
+@@ -0,0 +1,221 @@
++#include "api.hpp"
++#include "loadfromfile.hpp"
++#include "loadjed.hpp"
++#include <boost/format.hpp>
++#include <cstring>
++
++extern MachXO3 xo3;
++extern MachXO2 xo2;
++
++extern MachBase *device;
++extern std::string devID;
++
++extern char * databuf;
++extern unsigned char usercode[];
++extern unsigned char feature[];
++
++int initval(i2ctool::I2c &i2c_handle)
++{
++	unsigned int id=0;
++	int status;
++	status = cmd_readDevID(i2c_handle, &id);
++	if(id == 0xE12BD043)
++	{
++		device = &xo3;
++		devID = "LCMXO3LF-4300C";
++	}
++	else
++	{
++		device = &xo2;
++		devID = "need set...";
++	}
++    return status;
++}
++
++int updateCpld(i2ctool::I2c &i2c_handle, LoadJed &loadjed)
++{
++	// unsigned char userid[4] = {0x00};
++	// unsigned char featRow[10] = {0x00};
++	unsigned char buf[FLASH_PAGE_SIZE] = {0x00};
++
++	int status;
++	unsigned int i, j;
++	unsigned int numPgs;
++
++	status = initval(i2c_handle);
++	if (status != 0)
++		goto PROG_ABORT;
++
++	status = loadjed.parsing();
++	if (status != 0)
++		goto PROG_ABORT;
++	std::cout << "load jed completed" << std::endl;
++
++	status = cmd_openCfgIF(i2c_handle, TRANSPARENT_MODE);
++	if (status != 0)
++		goto PROG_ABORT;
++
++	status = cmd_EraseFlash(i2c_handle, ERASE_PROG_CFG | ERASE_PROG_UFM);
++	if (status != 0)
++	{
++		goto PROG_ABORT;
++	}
++
++	numPgs = device->devList.find(devID)->second.Cfgpages;
++	
++	status = cmd_CfgResetAddr(i2c_handle); 
++	if (status != 0)
++	{
++		goto PROG_ABORT;
++	}
++
++	for (i = 0; i < numPgs; ++i)
++	{
++#ifdef DEBUG_LOGGING
++		GENERAL_LOG_INFO << "Write Cfg page: " << i+1;
++#endif
++		if (status != 0)
++		{
++			goto PROG_ABORT;
++		}
++		status = cmd_CfgWritePage(i2c_handle, (unsigned char*)(databuf+i*16));
++		if (status != 0)
++		{
++			goto PROG_ABORT;
++		}
++	}
++	std::cout << "update Cfg completed" << std::endl;
++
++	status = cmd_UFMResetAddr(i2c_handle); 
++	if (status != 0)
++	{
++		goto PROG_ABORT;
++	}
++		
++	numPgs += device->devList.find(devID)->second.UFMpages;
++
++	for (; i < numPgs; ++i)
++	{
++#ifdef DEBUG_LOGGING
++	GENERAL_LOG_INFO << "Write Ufm page: " << i+1-device->devList.find(devID)->second.Cfgpages;
++#endif
++		status = cmd_UFMWritePage(i2c_handle, (unsigned char*)(databuf+i*16));
++		if (status != 0)
++		{
++			goto PROG_ABORT;
++		}
++	}
++	std::cout << "update Ufm completed" << std::endl;
++
++	// verify
++	numPgs = device->devList.find(devID)->second.Cfgpages;
++	status = cmd_CfgResetAddr(i2c_handle);
++	if (status != 0)
++	{
++		goto PROG_ABORT;
++	}
++
++	for (i = 0; i < numPgs; i++)
++	{
++#ifdef DEBUG_LOGGING
++		GENERAL_LOG_INFO << "Read CfgPage: " << i + 1;
++#endif
++		status = cmd_CfgReadPage(i2c_handle, buf);
++		if (status != 0)
++		{
++#ifdef DEBUG_LOGGING
++			GENERAL_LOG_ERROR << "Read error in CfgPage: " << i+1 ;
++#endif
++			goto PROG_ABORT;
++		}
++		for (j = 0; j < FLASH_PAGE_SIZE; j++)
++		{
++			if(strncmp((const char*)(buf), databuf+i*16, FLASH_PAGE_SIZE))
++			{
++				std::cout << "Verify CfgPage fail" << std::endl;
++				goto PROG_ABORT;
++			}
++		}
++	}
++	std::cout << "verify Cfg completed" << std::endl;
++
++	numPgs += device->devList.find(devID)->second.UFMpages;
++	status = cmd_UFMResetAddr(i2c_handle); 
++	if (status != 0)
++	{
++		goto PROG_ABORT;
++	}
++
++	for (; i < numPgs; i++)
++	{
++#ifdef DEBUG_LOGGING
++		GENERAL_LOG_INFO << "Read UFMPage: " << i + 1-device->devList.find(devID)->second.Cfgpages;
++#endif
++		status = cmd_UFMReadPage(i2c_handle, buf);
++		if (status != 0)
++		{
++#ifdef DEBUG_LOGGING
++			GENERAL_LOG_ERROR << " Read error in UFMPage: " << i + 1;
++#endif
++			goto PROG_ABORT;
++		}
++		for (j = 0; j < FLASH_PAGE_SIZE; j++)
++		{
++			if(strncmp((const char*)(buf), databuf+i*16, FLASH_PAGE_SIZE))
++			{
++				std::cout << "Verify UFMPage fail" << std::endl;
++				goto PROG_ABORT;
++			}
++		}
++	}
++	std::cout << "verify Ufm completed" << std::endl;
++
++	// // UserCode
++	// status = cmd_setUserID(i2c_handle, usercode);
++	// if (status != 0)
++	// {
++	// 	goto PROG_ABORT;
++	// }
++
++	// status = cmd_readUserID(i2c_handle, userid);
++	// if (status != 0)
++	// {
++	// 	goto PROG_ABORT;
++	// }
++	// if(strcmp((const char*)(userid), (const char*)(usercode)))
++	// {
++	// 	std::cout << "Verify UserCode fail" << std::endl;
++	// }
++
++// 	//feature
++// 	status = cmd_FeatureRowWrite(i2c_handle, feature);
++// 	if (status != 0)
++// 	{
++// 		goto PROG_ABORT;
++// 	}
++
++// 	status = cmd_FeatureRowRead(i2c_handle, featRow);
++// 	if (status < 0)
++// 	{
++// #ifdef DEBUG_LOGGING
++// 		GENERAL_LOG_INFO << "status=" << status;
++// #endif
++// 		goto PROG_ABORT;
++// 	}
++// 	if(strcmp((const char*)(featRow), (const char*)(feature)))
++// 	{
++// 		std::cout << "Verify Feature fail" << std::endl;
++// 		goto PROG_ABORT;
++// 	}
++
++	status = cmd_setDone(i2c_handle);
++	if (status != 0)
++	{
++		goto PROG_ABORT;
++	}
++
++PROG_ABORT:
++	cmd_closeCfgIF(i2c_handle); 
++	cmd_Bypass(i2c_handle);
++	return(-1);
++}
+diff --git a/cpld-update-tool/cpld_update/api.hpp b/cpld-update-tool/cpld_update/api.hpp
+new file mode 100644
+index 0000000..de510ec
+--- /dev/null
++++ b/cpld-update-tool/cpld_update/api.hpp
+@@ -0,0 +1,6 @@
++#include "cmds.hpp"
++#include "loadjed.hpp"
++#include <fstream> 
++
++int initval(i2ctool::I2c &i2c_handle);
++int updateCpld(i2ctool::I2c &i2c_handle, LoadJed &loadjed);
+\ No newline at end of file
+diff --git a/cpld-update-tool/cpld_update/cmds.cpp b/cpld-update-tool/cpld_update/cmds.cpp
+new file mode 100644
+index 0000000..9b39e1b
+--- /dev/null
++++ b/cpld-update-tool/cpld_update/cmds.cpp
+@@ -0,0 +1,921 @@
++#include <unistd.h>
++#include <initializer_list>
++#include "cmds.hpp"
++
++extern MachXO3 xo3;
++extern MachXO2 xo2;
++extern MachBase *device;
++extern std::string devID;
++
++int cmd_openCfgIF(i2ctool::I2c &i2c_handle, CfgMode_t mode) 
++{
++	unsigned char cmd[4];
++	int status;
++
++#ifdef DEBUG_LOGGING
++	if (mode == TRANSPARENT_MODE)
++	{
++		GENERAL_LOG_INFO << "cmd_openCfgIF(Transparent_MODE)";
++	}
++	else
++	{
++		GENERAL_LOG_INFO << "cmd_openCfgIF(Offline_MODE)";
++	}
++#endif
++
++	cmd[0] = 0x74;  // Enable Config Interface in Transparent Mode opcode
++	cmd[1] = 0x08;  // arg0
++	cmd[2] = 0x00;  // arg1
++//	cmd[3] = 0x00;  // arg2 - not used
++
++	if (mode == OFFLINE_MODE)
++	{
++		cmd[0] = 0xC6;  // Enable Config  Interface in Offline Mode opcode		
++	}
++
++	std::initializer_list<struct i2c_msg> msgs({{SLAVEADDR,0,3,cmd}});
++	status = i2c_handle.i2cSend(msgs);
++	if (status < 0)
++	{
++#ifdef DEBUG_LOGGING
++		GENERAL_LOG_INFO << "status=" << status;
++#endif
++		return -1;
++	}
++	// Wait till not busy - we have entered Config mode
++	status = cmd_waitStatusBusy(i2c_handle);
++
++#ifdef DEBUG_LOGGING
++	GENERAL_LOG_INFO << "status=" << status;
++#endif
++	return status;
++}
++
++int cmd_closeCfgIF(i2ctool::I2c &i2c_handle) 
++{
++	unsigned char cmd[4];
++	int status;
++
++#ifdef DEBUG_LOGGING
++	GENERAL_LOG_INFO << "cmd_closeCfgIF()";
++#endif
++
++	cmd[0] = 0x26;  // Disable Config  Interface opcode
++	cmd[1] = 0x00;  // arg0
++	cmd[2] = 0x00;  // arg1
++//	cmd[3] = 0x00;  // arg2  not used now
++
++    // Send Cfg Disable command    
++	std::initializer_list<struct i2c_msg> msgs({{SLAVEADDR,0,3,cmd}});
++	status = i2c_handle.i2cSend(msgs);
++
++#ifdef DEBUG_LOGGING
++	GENERAL_LOG_INFO << "status=" << status;
++#endif
++	return status;
++}
++
++int cmd_Refresh(i2ctool::I2c &i2c_handle) 
++{
++	unsigned char cmd[4];
++	int status;
++	unsigned int sr;
++	
++#ifdef DEBUG_LOGGING
++	GENERAL_LOG_INFO << "cmd_Refresh()";
++#endif
++
++	cmd[0] = 0x79;  // Refresh opcode
++	cmd[1] = 0x00;  // arg0
++	cmd[2] = 0x00;  // arg1
++//	cmd[3] = 0x00;  // arg2 - not used now
++
++	std::initializer_list<struct i2c_msg> msgs({{SLAVEADDR,0,3,cmd}});
++	status = i2c_handle.i2cSend(msgs);
++	if(status < 0)
++	{
++#ifdef DEBUG_LOGGING
++	GENERAL_LOG_INFO << "status=" << status;
++#endif
++		return -1;
++	}
++
++	// Must wait atleast Trefresh amount of time
++	usleep(device->devList.find(devID)->second.Trefresh*1000);
++
++	if (cmd_readStatusReg(i2c_handle, &sr) != 0)
++	{
++		return -1;
++	}
++
++#ifdef DEBUG_LOGGING
++	GENERAL_LOG_INFO << "status=" << status << " sr=" << sr;
++#endif
++		
++	// Verify that only DONE bit is definitely set and not FAIL or BUSY or ISC_ENABLED
++	if ((sr & 0x3f00) == 0x0100)
++	{
++		return 0;
++	}
++	else
++	{
++		return -1;
++	}
++}
++
++int cmd_setDone(i2ctool::I2c &i2c_handle) 
++{
++	unsigned char cmd[4];
++	int status;
++	unsigned int sr;
++	
++#ifdef DEBUG_LOGGING
++	GENERAL_LOG_INFO << "cmd_setDone";
++#endif
++
++	cmd[0] = 0x5E;  // Program DONE bit opcode
++	cmd[1] = 0x00;  // arg0
++	cmd[2] = 0x00;  // arg1
++	cmd[3] = 0x00;  // arg2
++
++    // Send Program USERCODE command
++	std::initializer_list<struct i2c_msg> msgs({{SLAVEADDR,0,4,cmd}});
++	status = i2c_handle.i2cSend(msgs);
++	if (status == 0)
++	{
++		// Wait 10 msec for Done
++		usleep(10000);
++	}
++	else 
++	{
++#ifdef DEBUG_LOGGING
++	GENERAL_LOG_ERROR << "i2cWrite error";
++#endif
++		return(-1);
++	}
++	
++	if (cmd_readStatusReg(i2c_handle, &sr) != 0)
++		return(-1);
++		
++	// Verify that DONE bit is definitely set and not FAIL or BUSY
++	if ((sr & 0x3100) == 0x0100)
++	{
++		return(0);
++	}
++	else
++	{
++		return(-1);
++	}
++}
++
++int cmd_readStatusReg(i2ctool::I2c &i2c_handle, unsigned int *pVal) 
++{
++	unsigned char cmd[4];
++	unsigned char data[4];
++	int status;
++
++#ifdef DEBUG_LOGGING
++	GENERAL_LOG_INFO << "cmd_readStatusReg()";
++#endif
++
++	cmd[0] = 0x3C;  // Read Status Register opcode
++	cmd[1] = 0x00;  // arg0
++	cmd[2] = 0x00;  // arg1
++	cmd[3] = 0x00;  // arg2
++
++    // Send Read Status Register command    
++	std::initializer_list<struct i2c_msg> msgs({{SLAVEADDR,0,4,cmd},{SLAVEADDR,I2C_M_RD,4,data}});
++	status = i2c_handle.i2cSend(msgs);
++
++#ifdef DEBUG_LOGGING
++	GENERAL_LOG_INFO << "status=" << status;
++#endif
++	if (status == 0)
++	{
++		*pVal = (data[0]<<24) | (data[1]<<16) | (data[2]<<8) | data[3];
++		return(0);
++	}
++	else
++	{
++		return(-1);
++	}
++}
++
++int cmd_waitBusyFlag(i2ctool::I2c &i2c_handle) 
++{
++	unsigned char cmd[4];
++	unsigned char data[4];
++	int status;
++	int loop;
++
++#ifdef DEBUG_LOGGING
++	GENERAL_LOG_INFO << "cmd_waitBusyFlag()";
++#endif
++
++	cmd[0] = 0xF0;  // Check Busy Flag Register opcode
++	cmd[1] = 0x00;  // arg0
++	cmd[2] = 0x00;  // arg1
++	cmd[3] = 0x00;  // arg2
++
++	loop = CMD_LOOP_TIMEOUT;
++	do
++	{
++	    // Send Read Busy Flag Register command    
++		std::initializer_list<struct i2c_msg> msgs({{SLAVEADDR,0,4,cmd},{SLAVEADDR,I2C_M_RD,1,data}});
++		status = i2c_handle.i2cSend(msgs);
++
++		if (status != 0)
++			return(-1);
++		
++		if (data[0])
++		{
++			// Still busy so wait another msec
++			--loop;
++			usleep(1000);   // delay 1 msec
++		}
++		
++	} while(loop && data[0]); 
++	
++	if (loop)
++		return(0);
++	else
++		return(-1);   // timed out waiting for BUSY to clear
++}
++
++int cmd_waitStatusBusy(i2ctool::I2c &i2c_handle) 
++{
++	unsigned char cmd[4];
++	unsigned char data[4];
++	int status;
++	int loop;
++
++#ifdef DEBUG_LOGGING
++	GENERAL_LOG_INFO << "cmd_waitStatusBusy()";
++#endif
++
++	cmd[0] = 0x3C;  // Read Status Register opcode
++	cmd[1] = 0x00;  // arg0
++	cmd[2] = 0x00;  // arg1
++	cmd[3] = 0x00;  // arg2
++
++	loop = CMD_LOOP_TIMEOUT;
++	do
++	{
++		std::initializer_list<struct i2c_msg> msgs({{SLAVEADDR,0,4,cmd},{SLAVEADDR,I2C_M_RD,4,data}});
++		status = i2c_handle.i2cSend(msgs);
++
++		if(status < 0)
++		{
++#ifdef DEBUG_LOGGING
++			GENERAL_LOG_INFO << "status=" << status;
++#endif
++			return -1;
++		}
++
++		if (data[2] & 0x20)  // FAIL bit set
++		{
++			return(-1);
++		}
++
++		if (data[2] & 0x10)
++		{
++			// Still busy so wait another msec and loop again, if not timed out
++			--loop;
++			usleep(1000);   // delay 1 msec
++		}			
++		
++	} while(loop && (data[2] & 0x10)); 
++		
++#ifdef DEBUG_LOGGING
++			GENERAL_LOG_INFO << "status=" << status << " data=" << std::hex << (unsigned int)(data[0])
++		 		<< " " << (unsigned int)(data[1]) << " " << (unsigned int)(data[2]) << " " << (unsigned int)(data[3]);
++#endif
++
++	if (loop)
++		return(0);
++	else
++		return(-1);   // timed out waiting for BUSY to clear
++}
++
++int cmd_Bypass(i2ctool::I2c &i2c_handle) 
++{
++	unsigned char cmd[4];
++	int status;
++
++#ifdef DEBUG_LOGGING
++	GENERAL_LOG_INFO << "cmd_Bypass()";
++#endif
++
++	cmd[0] = 0xFF;  // Bypass opcode - supposedly does not have arguements, just command byte
++//	cmd[1] = 0x00;  // arg0
++//	cmd[2] = 0x00;  // arg1
++//	cmd[3] = 0x00;  // arg2
++
++    // Send Read Status Register command    
++	std::initializer_list<struct i2c_msg> msgs({{SLAVEADDR,0,1,cmd}});
++	status = i2c_handle.i2cSend(msgs);
++
++
++#ifdef DEBUG_LOGGING
++	GENERAL_LOG_INFO << "status=" << status;
++#endif
++	return status;
++}
++
++int cmd_EraseFlash(i2ctool::I2c &i2c_handle, unsigned char mode) 
++{
++	unsigned char cmd[4];
++	int status;
++
++#ifdef DEBUG_LOGGING
++	GENERAL_LOG_INFO << "cmd_EraseFlash()";
++#endif
++	
++	mode = mode & 0x0f; 
++
++	cmd[0] = 0x0E;  // Erase Flash opcode
++	cmd[1] = mode;  // arg0 = which sectors to clear
++	cmd[2] = 0x00;  // arg1
++	cmd[3] = 0x00;  // arg2
++
++    // Send command
++	std::initializer_list<struct i2c_msg> msgs({{SLAVEADDR,0,4,cmd}});
++	status = i2c_handle.i2cSend(msgs);
++	if (status < 0)
++	{
++#ifdef DEBUG_LOGGING
++		GENERAL_LOG_INFO << "status=" << status;
++#endif
++		return -1;
++	}
++
++	// Must wait an amount of time, based on device size, for largest flash sector to erase.
++	if (mode & CMD_ERASE_CFG)
++		usleep(device->devList.find(devID)->second.CfgErase*1000);
++	else if (mode & CMD_ERASE_UFM)
++		usleep(device->devList.find(devID)->second.UFMErase*1000);  // medium
++	else		
++		usleep(50000);	// SRAM & Feature Row = shortest
++
++	status = cmd_waitStatusBusy(i2c_handle);
++
++	if (status < 0)
++	{
++#ifdef DEBUG_LOGGING
++		GENERAL_LOG_INFO << "status=" << status;
++#endif
++		return -1;
++	}
++	return 0;
++}
++
++int cmd_CfgResetAddr(i2ctool::I2c &i2c_handle) 
++{
++	unsigned char cmd[4];
++	int status;
++
++#ifdef DEBUG_LOGGING
++	GENERAL_LOG_INFO << "cmd_CfgResetAddr()";
++#endif
++
++	cmd[0] = 0x46;  // Reset CFG Address pointer to page 0 opcode
++	cmd[1] = 0x00;  // arg0
++	cmd[2] = 0x00;  // arg1
++	cmd[3] = 0x00;  // arg2
++
++	// Send command
++	std::initializer_list<struct i2c_msg> msgs({{SLAVEADDR,0,4,cmd}});
++	status = i2c_handle.i2cSend(msgs);
++
++#ifdef DEBUG_LOGGING
++	GENERAL_LOG_INFO << "status=" << status;
++#endif
++	return status;
++
++}
++
++int cmd_CfgReadPage(i2ctool::I2c &i2c_handle, unsigned char *pBuf) 
++{
++	unsigned char cmd[4];
++	unsigned char data[FLASH_PAGE_SIZE];
++	int status;
++	int i;
++
++#ifdef DEBUG_LOGGING
++	GENERAL_LOG_INFO << "cmd_CfgReadPage()";
++#endif
++
++	cmd[0] = 0x73;  // Read UFM opcode
++	cmd[1] = 0x00;  // arg0 = pad 4 bytes per page (to get around a readback problem)
++	cmd[2] = 0x00;  // arg1
++	cmd[3] = 0x01;  // arg2 = 1 page
++
++    // Send command    
++	std::initializer_list<struct i2c_msg> msgs({{SLAVEADDR,0,4,cmd},{SLAVEADDR,I2C_M_RD,FLASH_PAGE_SIZE,data}});
++	status = i2c_handle.i2cSend(msgs);
++
++#ifdef DEBUG_LOGGING
++	GENERAL_LOG_INFO << "status=" << status;
++#endif
++	if (status == 0)
++	{
++		for (i = 0; i < FLASH_PAGE_SIZE; i++)
++			pBuf[i] = data[i];
++		return(0);
++	}
++	else
++	{
++		return(-1);
++	}
++}
++
++int cmd_CfgWritePage(i2ctool::I2c i2c_handle, unsigned char *pBuf) 
++{
++	unsigned char cmd[4 + 16];
++	int status;
++	int i;
++	// int iscontinue;
++
++#ifdef DEBUG_LOGGING
++	GENERAL_LOG_INFO << "cmd_CfgWritePage()";
++#endif
++
++	cmd[0] = 0x70;  // Program Cfg opcode
++	cmd[1] = 0x00;  // arg0
++	cmd[2] = 0x00;  // arg1
++	cmd[3] = 0x01;  // arg2
++
++	for (i = 0; i < 16; i++)
++		cmd[4 + i] = pBuf[i];
++
++    // Send command  and page of data
++	std::initializer_list<struct i2c_msg> msgs({{SLAVEADDR,0,4 + 16,cmd}});
++	// std::cin >> iscontinue;
++	// if(iscontinue)
++	// {
++	// 	i2c_handle.i2cTryClose();
++	// 	i2c_handle.i2cTryOpen();
++	// }
++	status = i2c_handle.i2cSend(msgs);
++	// if(iscontinue)
++	// {
++	// 	i2c_handle.i2cTryClose();
++	// 	i2c_handle.i2cTryOpen();
++	// }
++
++	if (status == 0)
++	{
++		// Must wait 200 usec for a page to program.  This is a constant for all devices (see XO2 datasheet)
++		usleep(200);
++		status = cmd_waitStatusBusy(i2c_handle);
++	}
++	
++#ifdef DEBUG_LOGGING
++	GENERAL_LOG_INFO << "status=" << status;
++#endif
++	if (status == 0)
++	{
++		return(0);
++	}
++	else
++	{
++		return(-1);
++	}
++}
++
++int cmd_UFMWritePage(i2ctool::I2c &i2c_handle, unsigned char *pBuf) 
++{
++	unsigned char cmd[4 + 16];
++	int status;
++	int i;
++
++#ifdef DEBUG_LOGGING
++	GENERAL_LOG_INFO << "cmd_UFMWritePage()";
++#endif
++
++	if (device->devList.find(devID)->second.UFMpages == 0)
++    {
++#ifdef DEBUG_LOGGING
++        GENERAL_LOG_WARNING << "ERR_XO2_NO_UFM";
++#endif
++        return(-1);
++    }
++
++	cmd[0] = 0xC9;  // Program UFM opcode
++	cmd[1] = 0x00;  // arg0
++	cmd[2] = 0x00;  // arg1
++	cmd[3] = 0x01;  // arg2
++
++	for (i = 0; i < 16; i++)
++		cmd[4 + i] = pBuf[i];
++
++
++    // Send command  and page of data
++	std::initializer_list<struct i2c_msg> msgs({{SLAVEADDR,0,4+16,cmd}});
++	status = i2c_handle.i2cSend(msgs);
++
++	if (status == 0)
++	{
++		// Must wait 200 usec for a page to program.  This is a constant for all devices
++		usleep(200);
++		status = cmd_waitStatusBusy(i2c_handle);
++	}
++
++#ifdef DEBUG_LOGGING
++	GENERAL_LOG_INFO << "status=" << status;
++#endif
++	if (status == 0)
++	{
++		return(0);
++	}
++	else
++	{
++		return(-1);
++	}
++}
++
++int cmd_UFMResetAddr(i2ctool::I2c &i2c_handle) 
++{
++	unsigned char cmd[4];
++	int status;
++
++#ifdef DEBUG_LOGGING
++	GENERAL_LOG_INFO << "cmd_UFMResetAddr()";
++#endif
++
++	if (device->devList.find(devID)->second.UFMpages == 0)
++	{
++#ifdef DEBUG_LOGGING
++		GENERAL_LOG_WARNING << "ERR_XO2_NO_UFM";
++#endif
++		return(-1);
++	}
++
++	cmd[0] = 0x47;  // Reset UFM Address pointer to page 0 opcode
++	cmd[1] = 0x00;  // arg0
++	cmd[2] = 0x00;  // arg1
++	cmd[3] = 0x00;  // arg2
++
++	std::initializer_list<struct i2c_msg> msgs({{SLAVEADDR,0,4,cmd}});
++	status = i2c_handle.i2cSend(msgs);
++
++#ifdef DEBUG_LOGGING
++	GENERAL_LOG_INFO << "status=" << status;
++#endif
++	if (status == 0)
++	{
++		return(0);
++	}
++	else
++	{
++		return(-1);
++	}
++
++}
++
++int cmd_UFMReadPage(i2ctool::I2c &i2c_handle, unsigned char *pBuf) 
++{
++	unsigned char cmd[4];
++	unsigned char data[16];
++	int status;
++	int i;
++
++#ifdef DEBUG_LOGGING
++	GENERAL_LOG_INFO << "cmd_UFMReadPage()";
++#endif
++
++	if (device->devList.find(devID)->second.UFMpages == 0)
++	{
++#ifdef DEBUG_LOGGING
++		GENERAL_LOG_WARNING << "ERR_XO2_NO_UFM";
++#endif
++		return(-1);
++	}
++
++	cmd[0] = 0xCA;  // Read UFM opcode
++	cmd[1] = 0x00;  // arg0 = pad 4 bytes per page (to get around a readback problem)
++	cmd[2] = 0x00;  // arg1
++	cmd[3] = 0x01;  // arg2 = 1 page
++
++    // Send command    
++	std::initializer_list<struct i2c_msg> msgs({{SLAVEADDR,0,4,cmd},{SLAVEADDR,I2C_M_RD,16,data}});
++	status = i2c_handle.i2cSend(msgs);
++
++#ifdef DEBUG_LOGGING
++	GENERAL_LOG_INFO << "status=" << status;
++#endif
++	if (status == 0)
++	{
++		for (i = 0; i < 16; i++)
++			pBuf[i] = data[i];
++		return(0);
++	}
++	else
++	{
++		return(-1);
++	}
++}
++
++int cmd_FeatureRowWrite(i2ctool::I2c &i2c_handle, unsigned char *pFeature) 
++{
++	unsigned char cmd[16];
++	int i, status;
++
++#ifdef DEBUG_LOGGING
++	GENERAL_LOG_INFO << "cmd_FeatureRowWrite()";
++#endif
++
++
++	cmd[0] = 0xE4;  // program Feature opcode
++	cmd[1] = 0x00;  // arg0
++	cmd[2] = 0x00;  // arg1
++	cmd[3] = 0x00;  // arg2
++
++	for (i = 0; i < 8; i++)
++		cmd[4 + i] = pFeature[i];
++
++    // Send Program Feature bits command    
++	std::initializer_list<struct i2c_msg> msgs({{SLAVEADDR,0,12,cmd}});
++	status = i2c_handle.i2cSend(msgs);
++
++	if (status != 0)
++		return(-1);
++	
++	// Must wait 200 usec for a page to program.  This is a constant for all devices (see XO2 datasheet)
++	usleep(200);
++
++
++	cmd[0] = 0xF8;  // program FEABITS opcode
++	cmd[1] = 0x00;  // arg0
++	cmd[2] = 0x00;  // arg1
++	cmd[3] = 0x00;  // arg2
++
++	cmd[4] = pFeature[8];
++	cmd[5] = pFeature[9];
++
++    // Send Program FEABITS command    
++	std::initializer_list<struct i2c_msg> _msgs({{SLAVEADDR,0,6,cmd}});
++	status = i2c_handle.i2cSend(_msgs);
++
++	if (status == 0)
++	{
++		// Must wait 200 usec for a page to program.  This is a constant for all devices (see XO2 datasheet)
++		usleep(200);
++		status = cmd_waitStatusBusy(i2c_handle);
++	}
++
++	if (status == 0)
++	{
++		return(0);
++	}
++	else
++	{
++		return(-1);
++	}
++}
++
++int cmd_FeatureRowRead(i2ctool::I2c &i2c_handle, unsigned char *pFeature) 
++{
++	unsigned char cmd[4];
++	unsigned char data[8];
++
++	int i, status;
++
++#ifdef DEBUG_LOGGING
++	GENERAL_LOG_INFO << "cmd_FeatureRowRead()";
++#endif
++
++	cmd[0] = 0xE7;  // Read Feature opcode
++	cmd[1] = 0x00;  // arg0
++	cmd[2] = 0x00;  // arg1
++	cmd[3] = 0x00;  // arg2
++
++    // Send READ Feature bits command    
++// 	status = i2c_handle.i2cWrite(4, cmd);
++// 	if(status < 0)
++// 	{
++// #ifdef DEBUG_LOGGING
++// 	GENERAL_LOG_INFO << "status=" << status;
++// #endif
++// 		return -1;
++// 	}	
++//     	// Read back the 8 bytes requested   
++// 	status = i2c_handle.i2cRead(8, data);
++	std::initializer_list<struct i2c_msg> msgs({{SLAVEADDR,0,4,cmd},{SLAVEADDR,I2C_M_RD,8,data}});
++	status = i2c_handle.i2cSend(msgs);
++
++	if (status != 0)
++		return(-1);
++
++	for (i = 0; i < 8; i++)
++		pFeature[i] = data[i];
++
++
++	cmd[0] = 0xFB;  // Read FEABITS opcode
++	cmd[1] = 0x00;  // arg0
++	cmd[2] = 0x00;  // arg1
++	cmd[3] = 0x00;  // arg2
++
++    // Send Read FEABITS command    
++// 	status = i2c_handle.i2cWrite(4, cmd);
++// 	if(status < 0)
++// 	{
++// #ifdef DEBUG_LOGGING
++// 	GENERAL_LOG_INFO << "status=" << status;
++// #endif
++// 		return -1;
++// 	}
++//    	// Read back the 2 bytes requested   
++// 	status = i2c_handle.i2cRead(2, data);
++	std::initializer_list<struct i2c_msg> _msgs({{SLAVEADDR,0,4,cmd},{SLAVEADDR,I2C_M_RD,2,data}});
++	status = i2c_handle.i2cSend(_msgs);
++
++	if (status != 0)
++		return(-1);
++
++	pFeature[8] = data[0];
++	pFeature[9] = data[1];
++
++	return(0);
++}
++
++int cmd_readDevID(i2ctool::I2c &i2c_handle, unsigned int *pVal) 
++{
++	unsigned char cmd[4];
++	unsigned char data[4];
++	int status;
++
++#ifdef DEBUG_LOGGING
++	GENERAL_LOG_INFO << "cmd_readDevID()";
++#endif
++
++	cmd[0] = 0xE0;  // Read Device ID opcode
++	cmd[1] = 0x00;  // arg0
++	cmd[2] = 0x00;  // arg1
++	cmd[3] = 0x00;  // arg2
++	
++	std::initializer_list<struct i2c_msg> msgs({{SLAVEADDR,0,4,cmd},{SLAVEADDR,I2C_M_RD,4,data}});
++	status = i2c_handle.i2cSend(msgs);
++	if(status < 0)
++	{
++#ifdef DEBUG_LOGGING
++	GENERAL_LOG_INFO << "status=" << status;
++#endif
++		return -1;
++	}
++
++#ifdef DEBUG_LOGGING
++	GENERAL_LOG_INFO << "status=" << status << " data=" << std::hex << (unsigned int)(data[0])
++		 << " " << (unsigned int)(data[1]) << " " << (unsigned int)(data[2]) << " " << (unsigned int)(data[3]);
++#endif
++	if (status == 0)
++	{
++		*pVal = (data[0]<<24) | (data[1]<<16) | (data[2]<<8) | data[3];
++		return(0);
++	}
++	else
++	{
++		return(-1);
++	}
++}
++
++int cmd_readUserID(i2ctool::I2c &i2c_handle, unsigned char *pVal) 
++{
++	unsigned char cmd[4];
++	unsigned char data[4];
++	int status;
++
++#ifdef DEBUG_LOGGING
++	GENERAL_LOG_INFO << "cmd_readUserID()";
++#endif
++
++	cmd[0] = 0xC0;  // Read Device ID opcode
++	cmd[1] = 0x00;  // arg0
++	cmd[2] = 0x00;  // arg1
++	cmd[3] = 0x00;  // arg2
++	
++	std::initializer_list<struct i2c_msg> msgs({{SLAVEADDR,0,4,cmd},{SLAVEADDR,I2C_M_RD,4,data}});
++	status = i2c_handle.i2cSend(msgs);
++	if(status < 0)
++	{
++#ifdef DEBUG_LOGGING
++	GENERAL_LOG_INFO << "status=" << status;
++#endif
++		return -1;
++	}
++
++#ifdef DEBUG_LOGGING
++	GENERAL_LOG_INFO << "status=" << status << " data=" << std::hex << (unsigned int)(data[0])
++		 << " " << (unsigned int)(data[1]) << " " << (unsigned int)(data[2]) << " " << (unsigned int)(data[3]);
++#endif
++	if (status == 0)
++	{
++		for(int i=0; i<4; i++)
++		{
++			pVal[i] = data[i];
++		}
++		return(0);
++	}
++	else
++	{
++		return(-1);
++	}
++}
++
++int cmd_setUserID(i2ctool::I2c &i2c_handle, unsigned char *data) 
++{
++	unsigned char cmd[4+4];
++	// unsigned char data[4];
++	int status;
++
++#ifdef DEBUG_LOGGING
++	GENERAL_LOG_INFO << "cmd_readUserID()";
++#endif
++
++	cmd[0] = 0xC2;  // Read Device ID opcode
++	cmd[1] = 0x00;  // arg0
++	cmd[2] = 0x00;  // arg1
++	cmd[3] = 0x00;  // arg2
++	cmd[4] = data[0];
++	cmd[5] = data[1];
++	cmd[6] = data[2];
++	cmd[7] = data[3];
++	
++	std::initializer_list<struct i2c_msg> msgs({{SLAVEADDR,0,4 + 4,cmd}});
++	status = i2c_handle.i2cSend(msgs);
++	if(status < 0)
++	{
++#ifdef DEBUG_LOGGING
++	GENERAL_LOG_INFO << "status=" << status;
++#endif
++		return -1;
++	}
++
++#ifdef DEBUG_LOGGING
++	GENERAL_LOG_INFO << "status=" << status << " data=";
++#endif
++	if (status == 0)
++	{
++		return(0);
++	}
++	else
++	{
++		return(-1);
++	}
++}
++
++int cmd_SetPage(i2ctool::I2c &i2c_handle, SectorMode_t mode, unsigned int pageNum) 
++{
++	unsigned char cmd[8];
++	int status;
++
++#ifdef DEBUG_LOGGING
++	GENERAL_LOG_INFO << "cmd_SetPage()";
++#endif
++
++	if ((mode == UFM_SECTOR) && (pageNum > device->devList.find(devID)->second.UFMpages))
++	{
++#ifdef DEBUG_LOGGING
++		GENERAL_LOG_ERROR << "ERR_EXCEEDS_UFM_SIZE";
++#endif
++		return(-1);
++	}
++
++	if ((mode == CFG_SECTOR) && (pageNum > device->devList.find(devID)->second.Cfgpages))
++	{
++#ifdef DEBUG_LOGGING
++		GENERAL_LOG_ERROR << "ERR_EXCEEDS_CFG_SIZE";
++#endif
++		return(-1);
++	}
++
++
++	cmd[0] = 0xB4;  // opcode
++	cmd[1] = 0x00;  // arg0
++	cmd[2] = 0x00;  // arg1
++	cmd[3] = 0x00;  // arg2
++
++	if (mode == CFG_SECTOR)
++		cmd[4] = 0x00;  // page[0] = 0=Config, 1=UFM
++	else
++		cmd[4] = 0x40;  // page[0] = 0=Config, 1=UFM
++	cmd[5] = 0x00;  // page[1]
++	cmd[6] = (unsigned char)(pageNum>>8);  // page[2] = page number MSB
++	cmd[7] = (unsigned char)pageNum;       // page[3] = page number LSB
++
++	std::initializer_list<struct i2c_msg> msgs({{SLAVEADDR,0,8,cmd}});
++	status = i2c_handle.i2cSend(msgs);
++
++
++#ifdef DEBUG_LOGGING
++	GENERAL_LOG_INFO << "status=" << status;
++#endif
++	if (status == 0)
++	{
++		return(0);
++	}
++	else
++	{
++		return(-1);
++	}
++}
+\ No newline at end of file
+diff --git a/cpld-update-tool/cpld_update/cmds.hpp b/cpld-update-tool/cpld_update/cmds.hpp
+new file mode 100644
+index 0000000..34dae8b
+--- /dev/null
++++ b/cpld-update-tool/cpld_update/cmds.hpp
+@@ -0,0 +1,67 @@
++#pragma once
++
++#include "../i2c_tool/i2c_tool.hpp"
++#include "machxoinfo.hpp"
++
++#ifdef DEBUG_LOGGING
++#include "../../logging.hpp"
++#endif
++
++#define SLAVEADDR 0x40
++
++#define FLASH_PAGE_SIZE (16)   /**< 16 bytes per page in Cfg and UFM sectors */
++#define PROGRAM_TRANSPARENT 0x10 // program in Background, user logic runs while doing it
++#define PROGRAM_OFFLINE     0x00 // program in Direct mode, user logic halts
++#define PROGRAM_VERIFY      0x20 // Verify Programming of any of the above modes
++
++
++#define ERASE_PROG_UFM      0x08 // Erase/program UFM sector
++#define ERASE_PROG_CFG      0x04 // Erase and program CFG sector
++#define ERASE_PROG_FEATROW  0x02 // Erase/program Feature Row
++#define ERASE_SRAM          0x01 // Erase SRAM (used in Offline mode)
++
++#define CMD_LOOP_TIMEOUT    10000 // number of times to poll in a loop before aborting
++#define CMD_ERASE_UFM   8
++#define CMD_ERASE_CFG   4
++#define CMD_ERASE_FTROW 2
++#define CMD_ERASE_SRAM  1
++
++typedef enum
++{
++        TRANSPARENT_MODE,   /**< Erase and program sector while device is still operating. */
++        OFFLINE_MODE        /**< Halt user mode during erase and program sector. */
++} CfgMode_t;
++
++/**
++ * Which sector to operate on.
++ */
++typedef enum
++{
++        CFG_SECTOR,   /**< Flash Configuration sector (holds design) */
++        UFM_SECTOR,    /**< User Flash Memory sector (holds EBR values and general purpose usage) */
++        FEATURE_SECTOR,
++        SRAM
++} SectorMode_t;
++
++
++
++int cmd_openCfgIF(i2ctool::I2c &i2c_handle, CfgMode_t mode);
++int cmd_closeCfgIF(i2ctool::I2c &i2c_handle);
++int cmd_Refresh(i2ctool::I2c &i2c_handle);
++int cmd_setDone(i2ctool::I2c &i2c_handle);
++int cmd_readStatusReg(i2ctool::I2c &i2c_handle, unsigned int *pVal);
++int cmd_waitStatusBusy(i2ctool::I2c &i2c_handle);
++int cmd_Bypass(i2ctool::I2c &i2c_handle);
++int cmd_EraseFlash(i2ctool::I2c &i2c_handle, unsigned char mode);
++int cmd_CfgResetAddr(i2ctool::I2c &i2c_handle);
++int cmd_CfgReadPage(i2ctool::I2c &i2c_handle, unsigned char *pBuf);
++int cmd_CfgWritePage(i2ctool::I2c i2c_handle, unsigned char *pBuf);
++int cmd_UFMResetAddr(i2ctool::I2c &i2c_handle);
++int cmd_UFMReadPage(i2ctool::I2c &i2c_handle, unsigned char *pBuf);
++int cmd_UFMWritePage(i2ctool::I2c &i2c_handle, unsigned char *pBuf);
++int cmd_FeatureRowWrite(i2ctool::I2c &i2c_handle, unsigned char *pFeature);
++int cmd_FeatureRowRead(i2ctool::I2c &i2c_handle, unsigned char *pFeature);
++int cmd_readDevID(i2ctool::I2c &i2c_handle, unsigned int *pVal);
++int cmd_readUserID(i2ctool::I2c &i2c_handle, unsigned char *pVal);
++int cmd_setUserID(i2ctool::I2c &i2c_handle, unsigned char *data);
++int cmd_SetPage(i2ctool::I2c &i2c_handle, SectorMode_t mode, unsigned int pageNum);
+diff --git a/cpld-update-tool/cpld_update/global.cpp b/cpld-update-tool/cpld_update/global.cpp
+new file mode 100644
+index 0000000..1bbd473
+--- /dev/null
++++ b/cpld-update-tool/cpld_update/global.cpp
+@@ -0,0 +1,15 @@
++#include "../machxoinfo.hpp"
++#include <iostream>
++
++MachXO3 xo3;
++MachXO2 xo2;
++MachBase *device;
++std::string devID;
++
++// for loadjed
++unsigned char * databuf = 0;
++unsigned char usercode[4] = {0};
++unsigned char feature[10] = {0};
++
++std::string dev_id;
++int datasite = 0;
+\ No newline at end of file
+diff --git a/cpld-update-tool/cpld_update/loadfromfile.cpp b/cpld-update-tool/cpld_update/loadfromfile.cpp
+new file mode 100644
+index 0000000..3229f82
+--- /dev/null
++++ b/cpld-update-tool/cpld_update/loadfromfile.cpp
+@@ -0,0 +1,58 @@
++#include "loadfromfile.hpp"
++#include "cmds.hpp"
++#include <boost/algorithm/string.hpp>
++#include <boost/algorithm/string/trim.hpp>
++#include <boost/convert.hpp>
++#include <boost/convert/stream.hpp>
++#include <boost/convert/lexical_cast.hpp>
++#include <vector>
++
++static int flag = -1;
++
++int readLineFromFile(std::ifstream &infile, [[maybe_unused]] unsigned char *buf, int pagetype)
++{
++    std::string line;
++    std::vector<std::string> line_split;
++    boost::cnv::cstream ccnv;
++
++    infile.seekg(0, std::ios::beg);
++
++    std::getline(infile, line);
++    while(!infile.eof())
++    {
++        if(boost::starts_with(line, "# Cfg Data Array"))
++        {
++            flag = 0;
++        }
++        else if(boost::starts_with(line, "# UFM Data Array"))
++        {
++            flag = 1;
++        }
++        else if(boost::starts_with(line, "# FeatureRow"))
++        {
++            flag = 2;
++        }
++        std::getline(infile, line);
++        if(pagetype == flag)
++        {
++            break;
++        }
++    }
++
++    if (pagetype != flag || flag == -1)
++    {
++        return -1;
++    }
++
++    boost::trim(line);
++    boost::split(line_split, line, boost::is_any_of(" "), boost::token_compress_on);
++    for(unsigned int i=0; i<line_split.size(); i++)
++    {
++        unsigned int val = boost::convert<unsigned int>(line_split[i], ccnv(std::hex)).value_or(-1);
++        buf[i] = (unsigned char )(val);
++        // std::cout << std::hex << (unsigned int) (buf[i]);
++    }
++    // std::cout << std::endl;
++
++    return 0;
++}
+\ No newline at end of file
+diff --git a/cpld-update-tool/cpld_update/loadfromfile.hpp b/cpld-update-tool/cpld_update/loadfromfile.hpp
+new file mode 100644
+index 0000000..ed98749
+--- /dev/null
++++ b/cpld-update-tool/cpld_update/loadfromfile.hpp
+@@ -0,0 +1,5 @@
++#pragma once
++
++#include <fstream>
++
++int readLineFromFile(std::ifstream &infile, [[maybe_unused]] unsigned char *buf, int pagetype);
+\ No newline at end of file
+diff --git a/cpld-update-tool/cpld_update/loadjed.cpp b/cpld-update-tool/cpld_update/loadjed.cpp
+new file mode 100644
+index 0000000..591134d
+--- /dev/null
++++ b/cpld-update-tool/cpld_update/loadjed.cpp
+@@ -0,0 +1,240 @@
++#include "loadjed.hpp"
++
++extern MachXO3 xo3;
++extern MachXO2 xo2;
++extern MachBase *device;
++extern std::string devID;
++
++extern unsigned char * databuf;
++extern unsigned char usercode[];
++extern unsigned char feature[];
++
++extern std::string dev_id;
++extern int datasite;
++
++void removeLastStar(std::string &line)
++{
++	auto pos = line.find_last_of('*');
++	if((pos == std::string::npos) || (pos == 0))
++	{
++		return;
++	}
++	line = line.substr(0, pos);
++}
++
++void convertFeatureRowToHexArray(std::string line, int cnt)
++{
++	int i;
++	int j;
++	if(cnt == 8)
++		j=0;
++	if(cnt == 2)
++		j=8;
++	boost::trim(line);
++	std::reverse(line.begin(), line.end());
++
++	for (i = 0; i < 8 * cnt;)
++	{
++		auto val = std::bitset<8>(line.substr(i, 8));
++		feature[j++] = val.to_ulong();
++		i = i + 8;
++	}
++}
++
++void convertFuseToHexArray(std::string line)
++{
++	int i;
++	for (i = 0; i < 128;)
++	{
++		auto val = std::bitset<8>(line.substr(i, 8));
++		databuf[datasite++] = val.to_ulong();
++		i = i + 8;
++	}
++}
++
++void convertUserCodeToHexArray(std::string line)
++{
++	int i;
++	int j=0;
++	for (i = 0; i < 8;)
++	{
++		auto val = atoi(line.substr(i, 2).c_str());
++		usercode[j++] = val;
++		i = i + 2;
++	}
++}
++
++int findDeviceType(const std::string line)
++{
++	auto pos = line.find_last_of('-');
++	if((pos == std::string::npos) || (pos == 0))
++	{
++#ifdef DEBUG_LOGGING
++		GENERAL_LOG_ERROR << line <<  "not find flag:'-'";
++#endif
++		return -1;
++	}
++	dev_id = line.substr(17, pos-17);
++	boost::trim(dev_id);
++#ifdef DEBUG_LOGGING
++	GENERAL_LOG_INFO << "Device Name: " << dev_id;
++#endif
++	auto entry = xo2.devList.find(dev_id);
++	if(entry == xo2.devList.end())
++	{
++		entry = xo3.devList.find(dev_id);
++		if(entry == xo3.devList.end())
++		{
++#ifdef DEBUG_LOGGING
++			GENERAL_LOG_ERROR << line <<  "not supported.";
++#endif
++			return -1;
++		}
++		else
++		{
++			device = &xo3;
++		}
++	}
++	else
++	{
++		device = &xo2;
++	}
++	return 0;
++}
++
++
++LoadJed::LoadJed(const std::string infile)
++{
++	this->infile = std::ifstream(infile, std::ios::in | std::ios::binary);
++}
++
++LoadJed::~LoadJed()
++{
++	try
++	{
++		infile.close();
++		if(!databuf)
++		{
++			delete[] databuf;
++			databuf = 0;
++		}
++	}
++	catch(const std::exception& e)
++	{
++#ifdef DEBUG_LOGGING
++		GENERAL_LOG_ERROR << e.what();
++#endif
++	}
++}
++
++int LoadJed::parsing()
++{
++	std::string line;
++	bool done;
++	unsigned int state;
++	unsigned int pageCnt=0;
++
++	unsigned int UFMPageCnt=0, CfgPageCnt=0;
++
++
++	std::getline(infile, line);
++	if(line[0] != STX)
++	{
++#ifdef DEBUG_LOGGING
++		GENERAL_LOG_ERROR << "ERROR! Expected STX as first char!\nAborting.\n";
++#endif
++		return -1;
++	}
++
++	done = false;
++	while (!infile.eof()  && !done)
++	{
++		std::getline(infile, line);
++		if ((line[0] == '0') || (line[0] == '1'))
++			state = FUSE_DATA;
++		else if (boost::starts_with(line, "NOTE"))
++			state = COMMENT;
++		else if (line[0] == 'G')
++			state = SECURITY_FUSE;
++		else if (line[0] == 'L')
++			state = FUSE_LIST;
++		else if (line[0] == 'C')
++			state = FUSE_CHECKSUM;
++		else if (line[0] == '*')
++			state = END_DATA;
++		else if (line[0] == 'D')
++			state = FUSE_DEFAULT;
++		else if (line[0] == 'U')
++			state = USER_CODE;
++		else if (line[0] == 'E')
++			state = FEATURE_ROW;
++		else if (boost::starts_with(line, "QF"))
++			state = FUSE_SIZE;
++		else if (line[0] == ETX)
++			state = DONE;
++
++		if ((state == COMMENT) && (boost::regex_match(line, boost::regex(".+DEVICE\\s*NAME.+"))))
++		{
++			if ( findDeviceType(line) < 0)
++				return -1;
++			if (dev_id != devID)
++			{
++				std::cout << "jed file id: " << dev_id << " deviceId: " << devID << std::endl;
++				std::cout << "JED file is not right for this device" << std::endl;
++				return -1;
++			}
++			unsigned len = device->devList.find(devID)->second.Cfgpages + device->devList.find(devID)->second.UFMpages;
++			databuf = new unsigned char[len*16];
++		}
++
++		switch (state)
++		{
++			case FUSE_DATA:
++			{
++				++pageCnt;
++				if (pageCnt <= device->devList.find(devID)->second.Cfgpages)
++				{
++					++CfgPageCnt;
++					convertFuseToHexArray(line);
++				}
++				else if(UFMPageCnt < device->devList.find(devID)->second.UFMpages)
++				{
++					++UFMPageCnt;
++					convertFuseToHexArray(line);
++				}
++				if (UFMPageCnt == device->devList.find(devID)->second.UFMpages)	
++				{
++					done = true;
++				}
++			}
++				break;
++
++			// case USER_CODE:
++			// 	removeLastStar(line);
++			// 	if (line[1] == 'H')
++			// 		convertUserCodeToHexArray(line.substr(2, line.size()));
++			// 	else
++			// 		convertUserCodeToHexArray(line.substr(1, line.size()));
++			// 	break;
++
++			// case FEATURE_ROW:
++			// 	convertFeatureRowToHexArray(line.substr(1), 8);
++
++			// 	std::getline(infile, line);
++			// 	removeLastStar(line);
++			// 	convertFeatureRowToHexArray(line, 2);
++			// 	break;
++
++			case DONE:
++				done = true;
++				break;
++
++			default:
++				break;
++
++		}
++	}
++
++	return 0;
++}
++
+diff --git a/cpld-update-tool/cpld_update/loadjed.hpp b/cpld-update-tool/cpld_update/loadjed.hpp
+new file mode 100644
+index 0000000..51b176d
+--- /dev/null
++++ b/cpld-update-tool/cpld_update/loadjed.hpp
+@@ -0,0 +1,57 @@
++#pragma once
++
++#include "machxoinfo.hpp" 
++#include<bits/stdc++.h>
++#include <fstream>              
++#include <string>
++#include <string>
++#include <cstring>
++#include <boost/format.hpp>
++#include <boost/regex.hpp>
++#include <boost/lexical_cast.hpp>
++#include <boost/algorithm/string.hpp>
++#include <boost/algorithm/string/trim.hpp>
++
++#ifdef DEBUG_LOGGING
++#include "../../logging.hpp"
++#include <typeinfo>
++#endif
++
++#define STX 0x02
++#define ETX 0x03
++#define MAXLINE 1024
++
++enum
++{
++	COMMENT,
++	FUSE_CHECKSUM,
++	FUSE_DATA,
++	END_DATA,
++	FUSE_LIST,
++	SECURITY_FUSE,
++	FUSE_DEFAULT,
++	FUSE_SIZE,
++	USER_CODE,
++	FEATURE_ROW,
++	DONE
++};
++
++void removeLastStar(std::string &line);
++
++void convertFeatureRowToHexArray(std::string line, int cnt);
++
++void convertFuseToHexArray(std::string line);
++
++void convertUserCodeToHexArray(std::string line, std::ofstream &outfile);
++
++int findDeviceType(const std::string line);
++
++class LoadJed
++{
++	public:
++		LoadJed(const std::string infile);
++		int parsing();
++		~LoadJed();
++	private:
++		std::ifstream infile;
++};
+\ No newline at end of file
+diff --git a/cpld-update-tool/cpld_update/main.cpp b/cpld-update-tool/cpld_update/main.cpp
+new file mode 100644
+index 0000000..455ef0e
+--- /dev/null
++++ b/cpld-update-tool/cpld_update/main.cpp
+@@ -0,0 +1,54 @@
++#include "cmds.hpp"
++#include "api.hpp"
++#include "loadfromfile.hpp"
++#include "loadjed.hpp"
++#include <fstream> 
++#include <cstring>
++
++int main([[maybe_unused]] int argc, char** argv)
++{
++
++	std::string i2cDev = "";
++	std::string outfile = "";
++	[[maybe_unused]] int erasemode=0;
++	std::string updatefile = "";
++
++    std::string helpinfo = "\thelp :\tproduce help message, i2cDev must set. set one or more of 'downloads|erase|update'\n"
++						   "\ti2cDev :\tset i2cBus\n"
++						   "\tdownload :\tset the file download to\n"
++						   "\terase :\tselect section to erase, 0x2-Feature, 0x4-UFM, 0x8-CFG\n"
++						   "\tupdate :\tset the file for update cpld and verify, about CFG, USERCODE, UFM and Feature";
++	for(int i=0; i<argc; i++)
++	{
++		if(!strcmp(argv[i], "--help"))
++		{
++			std::cout << helpinfo << std::endl;
++			return 0;
++		}
++		else if(!strcmp(argv[i], "--i2cDev"))
++		{
++			i2cDev = std::string(argv[++i]);
++		}
++		else if(!strcmp(argv[i], "--download"))
++		{
++			outfile = std::string(argv[++i]);
++		}
++		else if(!strcmp(argv[i], "--erase"))
++		{
++			erasemode = atoi(argv[++i]);
++		}
++		else if(!strcmp(argv[i], "--update"))
++		{
++			updatefile = std::string(argv[++i]);
++		}
++	}
++
++	i2ctool::I2c i2c_handle(i2cDev, SLAVEADDR);
++
++	if (updatefile != "") {
++		LoadJed loadjed(updatefile);
++		updateCpld(i2c_handle, loadjed);
++	}
++
++    return 0;
++}
+diff --git a/cpld-update-tool/cpld_update/tags b/cpld-update-tool/cpld_update/tags
+new file mode 100644
+index 0000000..d4378a6
+--- /dev/null
++++ b/cpld-update-tool/cpld_update/tags
+@@ -0,0 +1,45 @@
++!_TAG_FILE_FORMAT	2	/extended format; --format=1 will not append ;" to lines/
++!_TAG_FILE_SORTED	1	/0=unsorted, 1=sorted, 2=foldcase/
++!_TAG_PROGRAM_AUTHOR	Darren Hiebert	/dhiebert@users.sourceforge.net/
++!_TAG_PROGRAM_NAME	Exuberant Ctags	//
++!_TAG_PROGRAM_URL	http://ctags.sourceforge.net	/official site/
++!_TAG_PROGRAM_VERSION	5.9~svn20110310	//
++ERR_XO2_EXCEEDS_CFG_SIZE	XO2_cmds.hpp	23;"	d
++ERR_XO2_EXCEEDS_UFM_SIZE	XO2_cmds.hpp	22;"	d
++ERR_XO2_NOT_IN_CFG_MODE	XO2_cmds.hpp	20;"	d
++ERR_XO2_NO_UFM	XO2_cmds.hpp	21;"	d
++LATTICE_XO2_CMDS_H	XO2_cmds.hpp	11;"	d
++XO2ECA_CMD_ERASE_CFG	XO2_cmds.hpp	29;"	d
++XO2ECA_CMD_ERASE_FTROW	XO2_cmds.hpp	30;"	d
++XO2ECA_CMD_ERASE_SRAM	XO2_cmds.hpp	31;"	d
++XO2ECA_CMD_ERASE_UFM	XO2_cmds.hpp	28;"	d
++XO2ECA_CMD_LOOP_TIMEOUT	XO2_cmds.hpp	27;"	d
++XO2ECAcmd_Bypass	XO2_cmds.cpp	/^int XO2ECAcmd_Bypass(XO2Handle_t *pXO2) $/;"	f
++XO2ECAcmd_CfgErase	XO2_cmds.cpp	/^int XO2ECAcmd_CfgErase(XO2Handle_t *pXO2) $/;"	f
++XO2ECAcmd_CfgReadPage	XO2_cmds.cpp	/^int XO2ECAcmd_CfgReadPage(XO2Handle_t *pXO2, unsigned char *pBuf) $/;"	f
++XO2ECAcmd_CfgResetAddr	XO2_cmds.cpp	/^int XO2ECAcmd_CfgResetAddr(XO2Handle_t *pXO2) $/;"	f
++XO2ECAcmd_CfgWritePage	XO2_cmds.cpp	/^int XO2ECAcmd_CfgWritePage(XO2Handle_t *pXO2, unsigned char *pBuf) $/;"	f
++XO2ECAcmd_EraseFlash	XO2_cmds.cpp	/^int XO2ECAcmd_EraseFlash(XO2Handle_t *pXO2, unsigned char mode) $/;"	f
++XO2ECAcmd_FeatureRowErase	XO2_cmds.cpp	/^int XO2ECAcmd_FeatureRowErase(XO2Handle_t *pXO2) $/;"	f
++XO2ECAcmd_FeatureRowRead	XO2_cmds.cpp	/^int XO2ECAcmd_FeatureRowRead(XO2Handle_t *pXO2, XO2FeatureRow_t *pFeature) $/;"	f
++XO2ECAcmd_FeatureRowWrite	XO2_cmds.cpp	/^int XO2ECAcmd_FeatureRowWrite(XO2Handle_t *pXO2, XO2FeatureRow_t *pFeature) $/;"	f
++XO2ECAcmd_Refresh	XO2_cmds.cpp	/^int XO2ECAcmd_Refresh(XO2Handle_t *pXO2) $/;"	f
++XO2ECAcmd_SRAMErase	XO2_cmds.cpp	/^int XO2ECAcmd_SRAMErase(XO2Handle_t *pXO2) $/;"	f
++XO2ECAcmd_SetPage	XO2_cmds.cpp	/^int XO2ECAcmd_SetPage(XO2Handle_t *pXO2, XO2SectorMode_t mode, unsigned int pageNum) $/;"	f
++XO2ECAcmd_UFMErase	XO2_cmds.cpp	/^int XO2ECAcmd_UFMErase(XO2Handle_t *pXO2) $/;"	f
++XO2ECAcmd_UFMReadPage	XO2_cmds.cpp	/^int XO2ECAcmd_UFMReadPage(XO2Handle_t *pXO2, unsigned char *pBuf) $/;"	f
++XO2ECAcmd_UFMResetAddr	XO2_cmds.cpp	/^int XO2ECAcmd_UFMResetAddr(XO2Handle_t *pXO2) $/;"	f
++XO2ECAcmd_UFMWritePage	XO2_cmds.cpp	/^int XO2ECAcmd_UFMWritePage(XO2Handle_t *pXO2, unsigned char *pBuf) $/;"	f
++XO2ECAcmd_closeCfgIF	XO2_cmds.cpp	/^int XO2ECAcmd_closeCfgIF(XO2Handle_t *pXO2) $/;"	f
++XO2ECAcmd_readBusyFlag	XO2_cmds.cpp	/^int XO2ECAcmd_readBusyFlag(XO2Handle_t *pXO2, unsigned char *pVal) $/;"	f
++XO2ECAcmd_readDevID	XO2_cmds.cpp	/^int XO2ECAcmd_readDevID(XO2Handle_t *pXO2, unsigned int *pVal) $/;"	f
++XO2ECAcmd_readStatusReg	XO2_cmds.cpp	/^int XO2ECAcmd_readStatusReg(XO2Handle_t *pXO2, unsigned int *pVal) $/;"	f
++XO2ECAcmd_readTraceID	XO2_cmds.cpp	/^int XO2ECAcmd_readTraceID(XO2Handle_t *pXO2, unsigned char *pVal) $/;"	f
++XO2ECAcmd_readUserCode	XO2_cmds.cpp	/^int XO2ECAcmd_readUserCode(XO2Handle_t *pXO2, unsigned int *pVal) $/;"	f
++XO2ECAcmd_setDone	XO2_cmds.cpp	/^int XO2ECAcmd_setDone(XO2Handle_t *pXO2) $/;"	f
++XO2ECAcmd_setUserCode	XO2_cmds.cpp	/^int XO2ECAcmd_setUserCode(XO2Handle_t *pXO2, unsigned int val) $/;"	f
++XO2ECAcmd_waitBusyFlag	XO2_cmds.cpp	/^int XO2ECAcmd_waitBusyFlag(XO2Handle_t *pXO2) $/;"	f
++XO2ECAcmd_waitStatusBusy	XO2_cmds.cpp	/^int XO2ECAcmd_waitStatusBusy(XO2Handle_t *pXO2) $/;"	f
++XO2ECAcmd_waitStatusBusy	cmds.cpp	/^int XO2ECAcmd_waitStatusBusy(XO2Handle_t *pXO2)$/;"	f
++cmd_openCfgIF	XO2_cmds.cpp	/^int cmd_openCfgIF(i2c_tool::I2C &i2c_handle, CfgMode_t mode) $/;"	f
++cmd_openCfgIF	cmds.cpp	/^int cmd_openCfgIF(i2c_tool::I2C &i2c_handle, CfgMode_t mode) $/;"	f
+diff --git a/cpld-update-tool/i2c_tool/i2c_msg.cpp b/cpld-update-tool/i2c_tool/i2c_msg.cpp
+new file mode 100644
+index 0000000..cb47d9b
+--- /dev/null
++++ b/cpld-update-tool/i2c_tool/i2c_msg.cpp
+@@ -0,0 +1,84 @@
++#include "i2c_msg.hpp"
++#include <iostream>
++
++namespace i2ctool
++{
++
++Message::Message(unsigned int len, unsigned char *buf, unsigned int slave_addr, unsigned char offset):slave_addr(slave_addr),offset(offset)
++{
++	if(!len)
++	{
++		throw "The length of buff is 0.";
++	}
++	if(!buf)
++	{
++		throw "The address of buff is 0.";
++	}
++	this->len = len;
++	this->buf = buf;
++}
++
++Message::Message(std::initializer_list<struct i2c_msg> &msgs)
++{
++    unsigned int len = msgs.size();
++	int i = 0;
++    if(len < 1)
++    {
++        throw "The length of msgs is 0.";
++    }
++    this->msgs = new struct i2c_msg[len];
++	for(auto msg:msgs)
++    {
++        this->msgs[i].addr = msg.addr;
++        this->msgs[i].flags = msg.flags;
++        this->msgs[i].len = msg.len;
++        this->msgs[i].buf = msg.buf;
++		i = i+1;
++    }
++    rdwr.nmsgs = len;
++    rdwr.msgs = this->msgs;
++}
++
++
++Message::~Message()
++{
++    rdwr.msgs = NULL;
++    if(msgs)
++    {
++        delete msgs;
++        msgs = NULL;
++    }
++}
++
++Message& Message::msgForRead()
++{
++    this->msgs = new struct i2c_msg[2];
++	msgs[0].addr = slave_addr;
++	msgs[0].flags = 0;
++	msgs[0].len = 1;
++	msgs[0].buf = &offset;
++
++	msgs[0].addr = slave_addr;
++	msgs[0].flags = I2C_M_RD;
++	msgs[0].len = len;
++	msgs[0].buf = buf;
++
++	rdwr.nmsgs = 1;
++	rdwr.msgs = msgs;
++	return *this;
++}
++
++Message& Message::msgForWrite()
++{
++    this->msgs = new struct i2c_msg[1];
++	msgs[0].addr = slave_addr;
++	msgs[0].flags = 0;
++	msgs[0].len = len;
++	msgs[0].buf = buf;
++
++	rdwr.nmsgs = 1;
++	rdwr.msgs = msgs;
++	return *this;
++}
++
++} // namespace i2ctool
+\ No newline at end of file
+diff --git a/cpld-update-tool/i2c_tool/i2c_msg.hpp b/cpld-update-tool/i2c_tool/i2c_msg.hpp
+new file mode 100644
+index 0000000..823b4b2
+--- /dev/null
++++ b/cpld-update-tool/i2c_tool/i2c_msg.hpp
+@@ -0,0 +1,36 @@
++#pragma once
++
++#include "i2c_tool.hpp"
++
++#include <fcntl.h>
++#include <unistd.h>
++#include <linux/i2c.h>
++#include <linux/i2c-dev.h>
++#include <sys/ioctl.h>
++#include <string>
++#include <initializer_list>
++
++namespace i2ctool
++{
++    
++class Message
++{
++	public:
++		Message(unsigned int len, unsigned char *buf, unsigned int slave_addr, unsigned char offset=0);
++		Message(std::initializer_list<struct i2c_msg> &msgs);
++		// Message(unsigned int slave_addr);
++		~Message();
++		Message& msgForWrite();
++		Message& msgForRead();
++		// Message& msgForWriteRead();
++		friend class I2c;
++	private:
++		unsigned int len;
++		unsigned char *buf;
++		unsigned int slave_addr;
++		unsigned char offset;
++		struct i2c_rdwr_ioctl_data rdwr;
++		struct i2c_msg *msgs;
++}; // class Message
++
++} // namespace i2ctool
+\ No newline at end of file
+diff --git a/cpld-update-tool/i2c_tool/i2c_tool.cpp b/cpld-update-tool/i2c_tool/i2c_tool.cpp
+new file mode 100644
+index 0000000..9f464e3
+--- /dev/null
++++ b/cpld-update-tool/i2c_tool/i2c_tool.cpp
+@@ -0,0 +1,95 @@
++#include <stdexcept>
++#include "i2c_tool.hpp"
++
++#ifdef DEBUG_LOGGING
++#include "../../logging.hpp"
++#endif
++
++
++namespace i2ctool
++{
++
++I2c::I2c (std::string dev, unsigned int slaveAddr, unsigned int timeout, unsigned int retries):dev(dev),slave_addr(slaveAddr),timeout(timeout),retries(retries)
++{
++	// i2cTryOpen();
++	// initialize(this->timeout, this->retries);
++}
++
++I2c::~I2c()
++{
++	i2cTryClose();
++}
++
++int I2c::i2cTryOpen()
++{
++	i2c_fd = open(this->dev.c_str(), O_RDWR);
++	if (i2c_fd < 0)
++	{
++		throw "open dev: " + this->dev + " failed";
++	}
++	return 0;
++}
++
++int I2c::i2cTryClose()
++{
++	try
++	{
++		close(i2c_fd);
++	}
++	catch (const std::exception &e)
++	{
++#ifdef DEBUG_LOGGING
++		GENERAL_LOG_WARNING << "close i2c handle failed";
++#endif
++	}
++	return 0;
++}
++
++void I2c::initialize(unsigned int timeout, unsigned int retries)
++{
++	ioctl(i2c_fd, I2C_TIMEOUT, timeout);
++	ioctl(i2c_fd, I2C_RETRIES, retries);
++}
++
++int I2c::i2cRead(unsigned int len, unsigned char *buf, unsigned char offset)
++{
++	Message message(len,  buf, slave_addr, offset);
++	if(ioctl(i2c_fd, I2C_RDWR, &message.msgForRead().rdwr) < 0)
++	{
++#ifdef DEBUG_LOGGING
++		GENERAL_LOG_ERROR << "i2c read failed";
++#endif
++		return -1;
++	}
++	return 0;
++}
++
++int I2c::i2cWrite(unsigned  int len, unsigned char *buf)
++{
++	Message message(len,  buf, slave_addr);
++	if(ioctl(i2c_fd, I2C_RDWR, &message.msgForWrite().rdwr) < 0)
++	{
++#ifdef DEBUG_LOGGING
++		GENERAL_LOG_ERROR << "i2c write failed";
++#endif
++		return -1;
++	}
++	return 0;
++}
++
++int I2c::i2cSend(std::initializer_list<struct i2c_msg> &msgs)
++{
++	i2cTryOpen();
++	Message message(msgs);
++	if(ioctl(i2c_fd, I2C_RDWR, &message.rdwr) < 0)
++	{
++#ifdef DEBUG_LOGGING
++		GENERAL_LOG_ERROR << "i2c write failed";
++#endif
++		return -1;
++	}
++	i2cTryClose();
++	return 0;
++}
++
++} // namespace i2ctool
+diff --git a/cpld-update-tool/i2c_tool/i2c_tool.hpp b/cpld-update-tool/i2c_tool/i2c_tool.hpp
+new file mode 100644
+index 0000000..de97bf5
+--- /dev/null
++++ b/cpld-update-tool/i2c_tool/i2c_tool.hpp
+@@ -0,0 +1,52 @@
++#pragma once
++ 
++#include "i2c_msg.hpp"
++
++#include <fcntl.h>
++#include <unistd.h>
++#include <linux/i2c.h>
++#include <linux/i2c-dev.h>
++#include <sys/ioctl.h>
++#include <string>
++
++
++/*
++	* namespace : small
++	* class : big hump
++	* function : small hump
++	* var : small and con with '_'
++*/
++/*
++	* How to use ?
++	  * unsigned char buf[1024] = {0};
++	  * i2ctool::I2c i2c_handle("/dev/i2c-0", 0x50);
++	  * i2c_handle.i2cRead(1023, buf);
++	  * i2c_handle.i2cRead(1023, buf, 0x16);
++	  * i2c_handle.i2cWrite(1023, buf);
++*/
++namespace i2ctool
++{
++
++class I2c
++{
++	public:
++		I2c(std::string dev, unsigned int slave_addr, unsigned int timeout=2, unsigned int retries=10);
++		~I2c();
++		int i2cSend(std::initializer_list<struct i2c_msg> &msgs);
++		int i2cRead(unsigned int len, unsigned char *buf, unsigned char offset=0);
++		int i2cWrite(unsigned int len, unsigned char *buf);
++		int i2cTryOpen();
++		int i2cTryClose();
++		// int i2cWriteRead(unsigned int writelen, unsigned char *writebuf, unsigned  int len, unsigned char *buf, unsigned char offset=0);
++	private:
++		void initialize(unsigned int timeout, unsigned int retries);
++		int i2c_fd;
++		std::string dev; 
++		unsigned int slave_addr;
++		unsigned int timeout;
++		unsigned int retries;
++}; // class I2c
++
++} // namespace i2ctool
++
++
+diff --git a/cpld-update-tool/jed_load/loadjed.hpp b/cpld-update-tool/jed_load/loadjed.hpp
+new file mode 100644
+index 0000000..08d781f
+--- /dev/null
++++ b/cpld-update-tool/jed_load/loadjed.hpp
+@@ -0,0 +1,321 @@
++#pragma once
++
++#include "machxoinfo.hpp" 
++#include<bits/stdc++.h>
++#include <fstream>              
++#include <string>
++#include <string>
++#include <cstring>
++#include <boost/format.hpp>
++#include <boost/regex.hpp>
++#include <boost/lexical_cast.hpp>
++#include <boost/algorithm/string.hpp>
++#include <boost/algorithm/string/trim.hpp>
++
++#ifdef DEBUG_LOGGING
++#include "../../logging.hpp"
++#include <typeinfo>
++#endif
++
++#define STX 0x02
++#define ETX 0x03
++#define MAXLINE 1024
++
++enum
++{
++	COMMENT,
++	FUSE_CHECKSUM,
++	FUSE_DATA,
++	END_DATA,
++	FUSE_LIST,
++	SECURITY_FUSE,
++	FUSE_DEFAULT,
++	FUSE_SIZE,
++	USER_CODE,
++	FEATURE_ROW,
++	DONE
++};
++
++MachXO3 xo3;
++MachXO2 xo2;
++MachBase *device;
++
++void removeLastStar(std::string &line)
++{
++	auto pos = line.find_last_of('*');
++	if((pos == std::string::npos) || (pos == 0))
++	{
++		return;
++	}
++	line = line.substr(0, pos);
++}
++
++void convertFeatureRowToHexArray(std::string line, std::ofstream &outfile, int cnt)
++{
++	// int val;
++	int i;
++	boost::trim(line);
++	std::reverse(line.begin(), line.end());
++
++	for (i = 0; i < 8 * cnt;)
++	{
++		boost::format fmt(" 0x%02x ");
++		auto val = std::bitset<8>(line.substr(i, 8));
++		fmt % (val.to_ulong());
++		outfile << fmt.str();
++		i = i + 8;
++	}
++}
++
++void convertFuseToHexArray(std::string line, std::ofstream &outfile)
++{
++	int i;
++	for (i = 0; i < 128;)
++	{
++		boost::format fmt(" 0x%02x ");
++		auto val = std::bitset<8>(line.substr(i, 8));
++		fmt % (val.to_ulong());
++		outfile << fmt.str();
++		i = i + 8;
++	}
++	outfile << std::endl;
++}
++
++void convertUserCodeToHexArray(std::string line, std::ofstream &outfile)
++{
++	int i;
++	for (i = 0; i < 8;)
++	{
++		boost::format fmt(" 0x%02x ");
++		auto val = atoi(line.substr(i, 2).c_str());
++		fmt % val;
++		outfile << fmt.str();
++		i = i + 2;
++	}
++	outfile << std::endl;
++}
++
++int findDeviceType(const std::string line, std::string &dev_id)
++{
++	std::string dev_name;
++	auto pos = line.find_last_of('-');
++	if((pos == std::string::npos) || (pos == 0))
++	{
++#ifdef DEBUG_LOGGING
++		GENERAL_LOG_ERROR << line <<  "not find flag:'-'";
++#endif
++		return -1;
++	}
++	dev_id = line.substr(17, pos-17);
++	boost::trim(dev_id);
++#ifdef DEBUG_LOGGING
++	GENERAL_LOG_INFO << "Device Name: " << dev_id;
++#endif
++	auto entry = xo2.devList.find(dev_id);
++	if(entry == xo2.devList.end())
++	{
++		entry = xo3.devList.find(dev_id);
++		if(entry == xo3.devList.end())
++		{
++#ifdef DEBUG_LOGGING
++			GENERAL_LOG_ERROR << line <<  "not supported.";
++#endif
++			return -1;
++		}
++		else
++		{
++			device = &xo3;
++		}
++	}
++	else
++	{
++		device = &xo2;
++	}
++	return 0;
++}
++
++class LoadJed
++{
++	public:
++		LoadJed(const std::string infile, const std::string outfile);
++		int parsing();
++		~LoadJed();
++	private:
++		std::ifstream infile;
++		std::ofstream outfile;
++};
++
++LoadJed::LoadJed(const std::string infile, const std::string outfile)
++{
++	this->infile = std::ifstream(infile, std::ios::in | std::ios::binary);
++	this->outfile = std::ofstream(outfile, std::ios::out);
++}
++
++LoadJed::~LoadJed()
++{
++	try
++	{
++		infile.close();
++		outfile.close();
++	}
++	catch(const std::exception& e)
++	{
++#ifdef DEBUG_LOGGING
++		GENERAL_LOG_ERROR << e.what();
++#endif
++	}
++}
++
++int LoadJed::parsing()
++{
++	std::string line;
++	bool done;
++	unsigned int state;
++	unsigned int pageCnt=0;
++	int fuse_addr;
++	std::string devID;
++
++	unsigned int UFMPageCnt=0, CfgPageCnt=0;
++#ifdef DEBUG_LOGGING
++	int fuse_size;
++	int erase_val;
++	int security_fuse;
++#endif
++
++	std::getline(infile, line);
++	if(line[0] != STX)
++	{
++
++#ifdef DEBUG_LOGGING
++		GENERAL_LOG_ERROR << "ERROR!  Expected STX as first char!\nAborting.\n";
++#endif
++		return -1;
++	}
++
++	done = false;
++	while (!infile.eof()  && !done)
++	{
++		std::getline(infile, line);
++		if ((line[0] == '0') || (line[0] == '1'))
++			state = FUSE_DATA;
++		else if (boost::starts_with(line, "NOTE"))
++			state = COMMENT;
++		else if (line[0] == 'G')
++			state = SECURITY_FUSE;
++		else if (line[0] == 'L')
++			state = FUSE_LIST;
++		else if (line[0] == 'C')
++			state = FUSE_CHECKSUM;
++		else if (line[0] == '*')
++			state = END_DATA;
++		else if (line[0] == 'D')
++			state = FUSE_DEFAULT;
++		else if (line[0] == 'U')
++			state = USER_CODE;
++		else if (line[0] == 'E')
++			state = FEATURE_ROW;
++		else if (boost::starts_with(line, "QF"))
++			state = FUSE_SIZE;
++		else if (line[0] == ETX)
++			state = DONE;
++
++		// Look for specific XO2 Device type and extract
++		if ((state == COMMENT) && (boost::regex_match(line, boost::regex(".+DEVICE\\s*NAME.+"))))
++		{
++			if ( findDeviceType(line, devID) < 0)
++				return -1;
++		}
++
++		switch (state)
++		{
++			case FUSE_DATA:
++			{
++				++pageCnt;
++				if ((pageCnt == 1) && (fuse_addr == 0))
++					outfile << "# Cfg Data Array\n";
++				else if (pageCnt == device->devList.find(devID)->second.Cfgpages + 1)
++					outfile << "# UFM Data Array\n";
++				if (pageCnt <= device->devList.find(devID)->second.Cfgpages)
++				{
++					++CfgPageCnt;
++					convertFuseToHexArray(line, outfile);
++				}
++				else if(UFMPageCnt < device->devList.find(devID)->second.UFMpages)
++				{
++					++UFMPageCnt;
++					convertFuseToHexArray(line, outfile);
++				}
++			}
++				break;
++			case COMMENT:
++				//outfile << "//" << line << std::endl;
++				break;
++			case FUSE_LIST:
++				removeLastStar(line);
++				fuse_addr = atoi(line.substr(1,line.size()).c_str());
++#ifdef DEBUG_LOGGING
++				GENERAL_LOG_INFO << "use addr " << fuse_addr;
++#endif
++				break;
++
++#ifdef DEBUG_LOGGING
++			case SECURITY_FUSE:
++				removeLastStar(line);
++				security_fuse = atoi(line.substr(1, line.size()).c_str());
++				GENERAL_LOG_INFO << "Security Fuse:" << security_fuse;
++				break;
++
++			case FUSE_DEFAULT:
++				removeLastStar(line);
++				erase_val = atoi(line.substr(1, line.size()).c_str());
++				if (erase_val != 0)
++					GENERAL_LOG_WARNING << "DEFAULT ERASE STATE NOT 0!";
++				break;
++
++			case FUSE_SIZE:
++				removeLastStar(line);
++				fuse_size = atoi(line.substr(2, line.size()).c_str());
++				GENERAL_LOG_INFO << "Fuse size: " << fuse_size;
++				break;
++#endif
++
++			case USER_CODE:   // This is informational only.  USERCODE is part of Config sector
++				outfile << "# Usercode\n";
++				removeLastStar(line);
++				if (line[1] == 'H')
++					convertUserCodeToHexArray(line.substr(2, line.size()), outfile);
++				else
++					convertUserCodeToHexArray(line.substr(1, line.size()), outfile);
++				break;
++
++			case FEATURE_ROW:
++				// 2 consectutive rows.  1st starts with E and is 64 bits.  2nd line is 16 bits, ends in *
++				outfile << "# FeatureRow\n";
++				convertFeatureRowToHexArray(line.substr(1), outfile, 8);
++				outfile << std::endl;
++
++				std::getline(infile, line);
++				removeLastStar(line);
++				convertFeatureRowToHexArray(line, outfile, 2);
++				outfile << std::endl;
++				break;
++
++			case DONE:
++				done = true;
++				break;
++
++			case END_DATA:
++				break;
++
++			case FUSE_CHECKSUM:
++				break;
++
++			default:
++				break;
++
++		}
++	}
++
++	return 0;
++}
++
+diff --git a/cpld-update-tool/jed_load/main.cpp b/cpld-update-tool/jed_load/main.cpp
+new file mode 100644
+index 0000000..ddafab2
+--- /dev/null
++++ b/cpld-update-tool/jed_load/main.cpp
+@@ -0,0 +1,13 @@
++#include "loadjed.hpp"
++
++int main(int argc, char **argv)
++{
++	if(argc != 3)
++	{
++		std::cout << "Usage: " << argv[0] << " infile outfile" << std::endl;
++		return -1;
++	}
++	LoadJed jedobj(argv[1], argv[2]);
++	jedobj.parsing();
++	return 0;
++}
+diff --git a/cpld-update-tool/machxoinfo.hpp b/cpld-update-tool/machxoinfo.hpp
+new file mode 100644
+index 0000000..7e52a4d
+--- /dev/null
++++ b/cpld-update-tool/machxoinfo.hpp
+@@ -0,0 +1,65 @@
++#pragma once
++#include <iostream>
++#include <boost/container/flat_map.hpp>
++
++typedef struct
++{
++	unsigned int        Cfgpages;    
++	unsigned int        UFMpages;    
++	unsigned int            CfgErase;    
++	unsigned int            UFMErase;    
++	unsigned int            Trefresh;    
++} DevInfo;
++
++using DevMap = boost::container::flat_map<
++std::string, DevInfo>;
++
++const DevMap xo2devlist =
++{
++	// Name            Cfg pgs
++	//                  |     UFM pgs
++	//                  |       |   Cfg erase time
++	//                  |       |    |     UFM erase time
++	//                  |       |    |      |     Trefresh time
++	{"LCMXO2-256"   , { 575,     0,  700,    0,      1}},
++	{"LCMXO2-640"   , {1152,   191,  1100, 600,      1}},
++	{"LCMXO2-640U"  , {2175,   512,  1400, 700,      1}},
++	{"LCMXO2-1200"  , {2175,   512,  1400, 700,      1}},
++	{"LCMXO2-1200U" , {3200,   639,  1900, 900,      2}},
++	{"LCMXO2-2000"  , {3200,   639,  1900, 900,      2}},
++	{"LCMXO2-2000U" , {5760,   767,  3100, 1000,     3}},
++	{"LCMXO2-4000"  , {5760,   767,  3100, 1000,     3}},
++	{"LCMXO2-7000"  , {9216,  2046,  4800, 1600,     4}},
++};
++
++const DevMap xo3devlist = 
++{
++	{"LCMXO3LF-640" , {1151, 191, 1400, 700,    1}},
++	{"LCMXO3LF-1300", { 2175, 511, 1900, 900,   1}},
++	{"LCMXO3LF-2100", {3198, 639, 3100, 1000,   1}},
++	{"LCMXO3LF-4300C", {5758, 767, 4800, 1600,   1}},	//using 
++	{"LCMXO3LF-6900", {9211, 2046, 4800, 1600,  1}},
++	{"LCMXO3LF-9400", {12539, 3582, 7700, 2800, 1}}
++};
++
++class MachBase
++{
++public:
++	MachBase(const DevMap& devList):devList(devList){}
++	const DevMap devList;
++};
++
++
++class MachXO2:public MachBase
++{
++public:
++	MachXO2():MachBase(::xo2devlist){}
++};
++
++class MachXO3:public MachBase
++{
++public:
++	MachXO3():MachBase(::xo3devlist){}
++};
++
++
+diff --git a/cpld-update-tool/meson.build b/cpld-update-tool/meson.build
+new file mode 100644
+index 0000000..6a663b1
+--- /dev/null
++++ b/cpld-update-tool/meson.build
+@@ -0,0 +1,34 @@
++source = [
++    'jed_load/main.cpp',
++    ]
++
++executable(
++    'jedfile_load_tool',
++    source,
++    include_directories: ['..'],
++#cpp_args:'-DDEBUG_LOGGING',
++    install: true,
++    install_dir: get_option('bindir')
++)
++
++src = [
++	'cpld_update/main.cpp',
++	'cpld_update/cmds.cpp',
++	'cpld_update/api.cpp',
++	'cpld_update/loadjed.cpp',
++	'cpld_update/loadfromfile.cpp',
++	'cpld_update/global.cpp',
++	'i2c_tool/i2c_tool.cpp',
++	'i2c_tool/i2c_msg.cpp',
++	]
++
++
++executable(
++    'cpld_update_tool',
++	src,
++    include_directories: ['..'],
++#	cpp_args:'-DDEBUG_LOGGING',
++    install: true,
++    install_dir: get_option('bindir')
++)
++
+-- 
+2.17.1
+

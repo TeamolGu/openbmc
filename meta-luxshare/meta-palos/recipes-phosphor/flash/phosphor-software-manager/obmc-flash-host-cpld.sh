@@ -3,8 +3,7 @@ image_path=/tmp/images/$1/
 image=/tmp/images/$1/cpld.jed
 manifest=/tmp/images/$1/MANIFEST
 type='cpld'
-cfg_i2c_bus=/dev/i2c-10
-cfg_i2c_addr=0x40
+cfg_i2c_bus=/dev/i2c-54
 
 function flash_cpld() {
     if [[ ! -f $image ]]; then
@@ -12,7 +11,7 @@ function flash_cpld() {
         exit -3
     fi
     echo "[Info]: Start flashing {${type}} using Bus {${cfg_i2c_bus}} , address {${cfg_i2c_addr}(7-bit)}"
-    cpldflash ${image} ${cfg_i2c_bus}
+	cpld_update_tool --i2cDev ${cfg_i2c_bus} --update ${image}
     if [[ $? -ne 0 ]];then
         echo "[Error]: Flash ${type} failed"
         exit -4
@@ -33,6 +32,4 @@ function require_check() {
 }
 
 # require_check
-# flash_cpld
-# for test
-echo test cpld $@ >> /testcpld.log
+flash_cpld

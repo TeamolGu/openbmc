@@ -8,6 +8,7 @@ SRC_URI += " \
 	file://obmc-flash-host-cpld.sh \
     file://0001-Add-the-Bios-and-CPLD-version-paths.patch \
 	file://0001-Added-the-support-for-upgrading-CPLD-and-BIOS-firmwa.patch \
+	file://0001-add-cpld_update_tool-for-cpld.patch \
 	file://hashfunc \
 	file://publickey \
 "
