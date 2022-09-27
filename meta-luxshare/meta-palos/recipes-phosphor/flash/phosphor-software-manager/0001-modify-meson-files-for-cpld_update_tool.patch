@@ -1,0 +1,37 @@
+From ebf27747421124393a4ced9f73d946d4b8bd9199 Mon Sep 17 00:00:00 2001
+From: IHAD <Cunjin.Tao@luxshare-ict.com>
+Date: Mon, 26 Sep 2022 17:52:59 -0700
+Subject: [PATCH] modify meson files for cpld_update_tool
+
+---
+ meson.build       | 4 ++++
+ meson_options.txt | 4 ++++
+ 2 files changed, 8 insertions(+)
+
+diff --git a/meson.build b/meson.build
+index bcdcee6..5d70ef5 100644
+--- a/meson.build
++++ b/meson.build
+@@ -359,3 +359,7 @@ endif
+ if get_option('side-switch-on-boot').enabled()
+     subdir('side-switch')
+ endif
++
++if get_option('cpld-update-tool').enabled()
++	subdir('cpld-update-tool')
++endif
+diff --git a/meson_options.txt b/meson_options.txt
+index 817e0c8..2f2b303 100644
+--- a/meson_options.txt
++++ b/meson_options.txt
+@@ -146,3 +146,7 @@ option(
+     value: '/run/media/rwfs-alt/cow',
+     description: 'The dir for alt-rwfs partition.',
+ )
++option(
++    'cpld-update-tool', type: 'feature', value: 'enabled',
++    description: 'Firmware update for cpld.',
++)
+-- 
+2.17.1
+
