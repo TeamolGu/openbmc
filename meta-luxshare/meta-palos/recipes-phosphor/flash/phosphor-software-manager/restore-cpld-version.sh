@@ -1,7 +1,7 @@
 #!/bin/bash
 bus=0
 address=0x0d
-offset=0x05
+offset="0x05 0x00"
 str=$(i2ctransfer -y $bus w1@$address $offset r1)
 version=$(printf "%d" $str)
 echo "CPLD version got from I2C:$version"
