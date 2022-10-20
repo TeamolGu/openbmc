@@ -46,11 +46,11 @@ function require_check() {
 }
 
 function switch_rom_to_bmc() {
+    echo -n $bmc_spi_bus_info > ${aspeed_smc_bind_path}/unbind > /dev/null 2>&1
     reg_status="`i2ctransfer -f -y $i2c_bus w2@$i2c_addr $switch_reg r1`"
     write_reg="`expr $[$reg_status | 0x80]`"
     reg_hex="`printf 0x%x $write_reg`"
     i2ctransfer -f -y $i2c_bus w3@$i2c_addr $switch_reg $reg_hex
-    echo -n $bmc_spi_bus_info > ${aspeed_smc_bind_path}/unbind > /dev/null 2>&1
     echo -n $bmc_spi_bus_info > ${aspeed_smc_bind_path}/bind
     sleep 3
     if [[ ! -e $bios_mtd_path ]];then
