@@ -1,0 +1,338 @@
+From 8a7965d2c6b4838fb318bf1e6b41a4fc2bb06a02 Mon Sep 17 00:00:00 2001
+From: IHAD <Cunjin.Tao@luxshare-ict.com>
+Date: Thu, 20 Oct 2022 01:52:58 -0700
+Subject: [PATCH 1/1] modify gen-fw-tar to get tar package
+
+---
+ README.md                  |  13 +++
+ gen-cpld-tar               | 171 -------------------------------------
+ gen-bios-tar => gen-fw-tar |  49 +++++++----
+ 3 files changed, 47 insertions(+), 186 deletions(-)
+ delete mode 100755 gen-cpld-tar
+ rename gen-bios-tar => gen-fw-tar (83%)
+
+diff --git a/README.md b/README.md
+index 0b53ce2..0d3cb0c 100644
+--- a/README.md
++++ b/README.md
+@@ -10,3 +10,16 @@ To build this package, do the following steps:
+ 2. `ninja -C build`
+ 
+ To clean the repository run `rm -r build`.
++
++
++# Add for Cunjin.Tao
++
++## Get firmware tar package
++Rename your BIOS to bios.bin
++Rename your CPLD to cpld.jed
++cmd: gen-fw-tar -m palos -t bios -v test bios.bin
++	will get obmc-host.tar.gz
++cmd: gen-fw-tar -m palos -t cpld -v test cpld.jed
++	will get obmc-cpld.tar.gz
++try: gen-fw-tar -h
++	for more info
+diff --git a/gen-cpld-tar b/gen-cpld-tar
+deleted file mode 100755
+index 65c13ce..0000000
+--- a/gen-cpld-tar
++++ /dev/null
+@@ -1,171 +0,0 @@
+-#!/bin/bash
+-set -eo pipefail
+-
+-help=$'Generate Tarball with Cpld image and MANIFEST Script
+-
+-Generates a Cpld image tarball from given file as input.
+-Creates a MANIFEST for image verification and recreation
+-Packages the image and MANIFEST together in a tarball
+-
+-usage: gen-cpld-tar [OPTION] <Cpld FILE>...
+-
+-Options:
+-   -o, --out <file>       Specify destination file. Defaults to
+-                          `pwd`/obmc-cpld.tar.gz if unspecified.
+-   -s, --sign <path>      Sign the image. The optional path argument specifies
+-                          the private key file. Defaults to the bash variable
+-                          PRIVATE_KEY_PATH if available, or else uses the
+-                          open-source private key in this script.
+-   -m, --machine <name>   Optionally specify the target machine name of this
+-                          image.
+-   -v, --version <name>   Specify the version of cpld image file
+-   -h, --help             Display this help text and exit.
+-'
+-
+-#################################################################
+-# It's the OpenBMC "public" private key (currently under
+-# meta-phosphor/recipes-phosphor/flash/files/OpenBMC.priv):
+-# https://gerrit.openbmc-project.xyz/c/openbmc/openbmc/+/8949/15/
+-# meta-phosphor/common/recipes-phosphor/flash/files/OpenBMC.priv
+-#
+-#################################################################
+-private_key=$'-----BEGIN PRIVATE KEY-----
+-MIICdwIBADANBgkqhkiG9w0BAQEFAASCAmEwggJdAgEAAoGBAPvSDLu6slkP1gri
+-PaeQXL9ysD69J/HjbBCIQ0RPfeWBb75US1tRTjPP0Ub8CtH8ExVf8iF1ulsZA78B
+-zIjBYZVp9pyD6LbpZ/hjV7rIH6dTNhoVpdA+F8LzmQ7cyhHG8l2JMvdunwF2uX5k
+-D4WDcZt/ITKZNQNavPtmIyD5HprdAgMBAAECgYEAuQkTSi5ZNpAoWz76xtGRFSwU
+-zUT4wQi3Mz6tDtjKTYXasiQGa0dHC1M9F8fDu6BZ9W7W4Dc9hArRcdzEighuxoI/
+-nZI/0uL89iUEywnDEIHuS6D5JlZaj86/nx9YvQnO8F/seM+MX0EAWVrd5wC7aAF1
+-h6Fu7ykZB4ggUjQAWwECQQD+AUiDOEO+8btLJ135dQfSGc5VFcZiequnKWVm6uXt
+-rX771hEYjYMjLqWGFg9G4gE3GuABM5chMINuQQUivy8tAkEA/cxfy19XkjtqcMgE
+-x/UDt6Nr+Ky/tk+4Y65WxPRDas0uxFOPk/vEjgVmz1k/TAy9G4giisluTvtmltr5
+-DCLocQJBAJnRHx9PiD7uVhRJz6/L/iNuOzPtTsi+Loq5F83+O6T15qsM1CeBMsOw
+-cM5FN5UeMcwz+yjfHAsePMkcmMaU7jUCQHlg9+N8upXuIo7Dqj2zOU7nMmkgvSNE
+-5yuNImRZabC3ZolwaTdd7nf5r1y1Eyec5Ag5yENV6JKPe1Xkbb1XKJECQDngA0h4
+-6ATvfP1Vrx4CbP11eKXbCsZ9OGPHSgyvVjn68oY5ZP3uPsIattoN7dE2BRfuJm7m
+-F0nIdUAhR0yTfKM=
+------END PRIVATE KEY-----
+-'
+-
+-do_sign=false
+-PRIVATE_KEY_PATH=${PRIVATE_KEY_PATH:-}
+-private_key_path="${PRIVATE_KEY_PATH}"
+-outfile=""
+-machine=""
+-version=""
+-
+-while [[ $# -gt 0 ]]; do
+-  key="$1"
+-  case $key in
+-    -o|--out)
+-      outfile="$2"
+-      shift 2
+-      ;;
+-    -s|--sign)
+-      do_sign=true
+-      if [[ -n "${2}"  && "${2}" != -* ]]; then
+-        private_key_path="$2"
+-        shift 2
+-      else
+-        shift 1
+-      fi
+-      ;;
+-    -m|--machine)
+-      machine="$2"
+-      shift 2
+-      ;;
+-    -v|--version)
+-      version="$2"
+-      shift 2
+-      ;;
+-    -h|--help)
+-      echo "$help"
+-      exit
+-      ;;
+-    -*)
+-      echo "Unrecognised option $1"
+-      echo "$help"
+-      exit
+-      ;;
+-    *)
+-      file="$1"
+-      shift 1
+-      ;;
+-  esac
+-done
+-
+-if [ ! -f "${file}" ]; then
+-  echo "${file} not found, Please enter a valid Cpld image file"
+-  echo "$help"
+-  exit 1
+-fi
+-
+-if [[ -z $version ]]; then
+-  echo "Please provide version of image with -v option"
+-  exit 1
+-fi
+-
+-if [[ -z $outfile ]]; then
+-  outfile=$(pwd)/obmc-cpld.tar.gz
+-else
+-  if [[ $outfile != /* ]]; then
+-    outfile=$(pwd)/$outfile
+-  fi
+-fi
+-
+-scratch_dir=$(mktemp -d)
+-# Remove the temp directory on exit.
+-# The files in the temp directory may contain read-only files, so add
+-# --interactive=never to skip the prompt.
+-trap '{ rm -r --interactive=never ${scratch_dir}; }' EXIT
+-
+-if [[ "${do_sign}" == true ]]; then
+-  if [[ -z "${private_key_path}" ]]; then
+-    private_key_path=${scratch_dir}/OpenBMC.priv
+-    echo "${private_key}" > "${private_key_path}"
+-    echo "Image is NOT secure!! Signing with the open private key!"
+-  else
+-    if [[ ! -f "${private_key_path}" ]]; then
+-      echo "Couldn't find private key ${private_key_path}."
+-      exit 1
+-    fi
+-
+-    echo "Signing with ${private_key_path}."
+-  fi
+-
+-  public_key_file=publickey
+-  public_key_path=${scratch_dir}/$public_key_file
+-  openssl pkey -in "${private_key_path}" -pubout -out "${public_key_path}"
+-fi
+-
+-manifest_location="MANIFEST"
+-files_to_sign="$manifest_location $public_key_file"
+-
+-# Go to scratch_dir
+-cp "${file}" "${scratch_dir}"
+-cd "${scratch_dir}"
+-files_to_sign+=" $(basename "${file}")"
+-
+-echo "Creating MANIFEST for the image"
+-echo -e "purpose=xyz.openbmc_project.Software.Version.VersionPurpose.CPLD\n\
+-version=$version" > $manifest_location
+-
+-if [[ -n "${machine}" ]]; then
+-    echo -e "MachineName=${machine}" >> $manifest_location
+-fi
+-
+-if [[ "${do_sign}" == true ]]; then
+-  private_key_name=$(basename "${private_key_path}")
+-  key_type="${private_key_name%.*}"
+-  echo KeyType="${key_type}" >> $manifest_location
+-  echo HashType="RSA-SHA256" >> $manifest_location
+-
+-  for file in $files_to_sign; do
+-    openssl dgst -sha256 -sign "${private_key_path}" -out "${file}.sig" "$file"
+-  done
+-
+-  additional_files="*.sig"
+-fi
+-
+-tar -czvf $outfile $files_to_sign $additional_files
+-echo "Cpld image tarball is at $outfile"
+diff --git a/gen-bios-tar b/gen-fw-tar
+similarity index 83%
+rename from gen-bios-tar
+rename to gen-fw-tar
+index 16f6fbe..a8cbaf6 100755
+--- a/gen-bios-tar
++++ b/gen-fw-tar
+@@ -1,17 +1,17 @@
+ #!/bin/bash
+ set -eo pipefail
+ 
+-help=$'Generate Tarball with Bios image and MANIFEST Script
++help=$'Generate Tarball with firmware image and MANIFEST Script
+ 
+-Generates a Bios image tarball from given file as input.
++Generates a firmware image tarball from given file as input.
+ Creates a MANIFEST for image verification and recreation
+ Packages the image and MANIFEST together in a tarball
+ 
+-usage: gen-bios-tar [OPTION] <Bios FILE>...
++usage: gen-fw-tar [OPTION] <Firmware FILE>...
+ 
+ Options:
+    -o, --out <file>       Specify destination file. Defaults to
+-                          `pwd`/obmc-bios.tar.gz if unspecified.
++                          `pwd`/obmc-$type.tar.gz if unspecified.
+    -s, --sign <path>      Sign the image. The optional path argument specifies
+                           the private key file. Defaults to the bash variable
+                           PRIVATE_KEY_PATH if available, or else uses the
+@@ -19,6 +19,7 @@ Options:
+    -m, --machine <name>   Optionally specify the target machine name of this
+                           image.
+    -v, --version <name>   Specify the version of bios image file
++   -t, --type <name>   Specify the type of fw image file
+    -h, --help             Display this help text and exit.
+ '
+ 
+@@ -53,6 +54,8 @@ private_key_path="${PRIVATE_KEY_PATH}"
+ outfile=""
+ machine=""
+ version=""
++imgtype="Bios"
++input_files=""
+ 
+ while [[ $# -gt 0 ]]; do
+   key="$1"
+@@ -78,6 +81,10 @@ while [[ $# -gt 0 ]]; do
+       version="$2"
+       shift 2
+       ;;
++    -t|--type)
++      imgtype="$2"
++      shift 2
++      ;;
+     -h|--help)
+       echo "$help"
+       exit
+@@ -88,25 +95,34 @@ while [[ $# -gt 0 ]]; do
+       exit
+       ;;
+     *)
+-      file="$1"
++      input_files+=" $1"
+       shift 1
+       ;;
+   esac
+ done
+ 
+-if [ ! -f "${file}" ]; then
+-  echo "${file} not found, Please enter a valid Bios image file"
+-  echo "$help"
+-  exit 1
+-fi
++for file in $input_files; do
++    if [ ! -f "${file}" ]; then
++      echo "${file} not found, Please enter a valid firmware image file"
++      echo "$help"
++      exit 1
++    fi
++done
+ 
+ if [[ -z $version ]]; then
+   echo "Please provide version of image with -v option"
+   exit 1
+ fi
+ 
++if [[ ${imgtype^^} == "BIOS" ]]; then
++	imgtype="Host"
++fi
++if [[ ${imgtype^^} == "CPLD" ]]; then
++	imgtype="CPLD"
++fi
++
+ if [[ -z $outfile ]]; then
+-  outfile=$(pwd)/obmc-bios.tar.gz
++  outfile=$(pwd)/obmc-${imgtype,,}.tar.gz
+ else
+   if [[ $outfile != /* ]]; then
+     outfile=$(pwd)/$outfile
+@@ -142,12 +158,15 @@ manifest_location="MANIFEST"
+ files_to_sign="$manifest_location $public_key_file"
+ 
+ # Go to scratch_dir
+-cp "${file}" "${scratch_dir}"
++for file in ${input_files}; do
++	cp "${file}" "${scratch_dir}"
++	files_to_sign+=" $(basename "${file}")"
++done
++	
+ cd "${scratch_dir}"
+-files_to_sign+=" $(basename "${file}")"
+ 
+ echo "Creating MANIFEST for the image"
+-echo -e "purpose=xyz.openbmc_project.Software.Version.VersionPurpose.Host\n\
++echo -e "purpose=xyz.openbmc_project.Software.Version.VersionPurpose.$imgtype\n\
+ version=$version" > $manifest_location
+ 
+ if [[ -n "${machine}" ]]; then
+@@ -168,4 +187,4 @@ if [[ "${do_sign}" == true ]]; then
+ fi
+ 
+ tar -czvf $outfile $files_to_sign $additional_files
+-echo "Bios image tarball is at $outfile"
++echo "Firmware image tarball is at $outfile"
+-- 
+2.17.1
+
