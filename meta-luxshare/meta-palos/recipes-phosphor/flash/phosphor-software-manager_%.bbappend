@@ -10,6 +10,7 @@ SRC_URI += " \
 	file://0001-Added-the-support-for-upgrading-CPLD-and-BIOS-firmwa.patch \
 	file://0001-add-cpld_update_tool-for-cpld.patch \
 	file://0001-modify-meson-files-for-cpld_update_tool.patch \
+	file://0001-modify-gen-fw-tar-to-get-tar-package.patch \
 	file://hashfunc \
 	file://publickey \
 "
