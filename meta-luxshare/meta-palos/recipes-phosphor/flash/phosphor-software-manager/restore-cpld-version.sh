@@ -2,7 +2,7 @@
 bus=0
 address=0x0d
 offset="0x05 0x00"
-str=$(i2ctransfer -y $bus w1@$address $offset r1)
+str=$(i2ctransfer -y $bus w2@$address $offset r1)
 version=$(printf "%d" $str)
 echo "CPLD version got from I2C:$version"
 if [ "$version" == "" ]; then
