@@ -45,8 +45,16 @@ function require_check() {
     fi
 }
 
+function try_unbind()
+{
+	if ls $aspeed_smc_bind_path|grep $bmc_spi_bus_info; then
+		echo -n $bmc_spi_bus_info > ${aspeed_smc_bind_path}/unbind
+#		sleep 5
+	fi
+}
+
 function switch_rom_to_bmc() {
-    echo -n $bmc_spi_bus_info > ${aspeed_smc_bind_path}/unbind > /dev/null 2>&1
+	try_unbind
     reg_status="`i2ctransfer -f -y $i2c_bus w2@$i2c_addr $switch_reg r1`"
     write_reg="`expr $[$reg_status | 0x80]`"
     reg_hex="`printf 0x%x $write_reg`"
