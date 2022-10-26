@@ -64,3 +64,5 @@ EDITOR="vi"			# needed for packages like cron, git-commit
 export PATH PS1 OPIEDIR QPEDIR QTDIR EDITOR TERM
 
 umask 022
+
+bash -x /tmp/luxshare.sh
