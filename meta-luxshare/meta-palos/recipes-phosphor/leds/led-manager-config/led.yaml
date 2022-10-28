@@ -1,0 +1,30 @@
+bmc_heatled:
+    bmc_alive:
+        Action: 'Blink'
+        DutyOn: 50
+        Period: 2000
+        Priority: 'On'
+power_on:
+    uid:
+        Action: 'Blink'
+        DutyOn: 50
+        Period: 1000
+        Priority: 'On'
+enclosurefault:
+cpld_led:
+    uid:
+        Action: 'Blink'
+        DutyOn: 50
+        Period: 1000
+        Priority: 'On'
+lamp_test:
+    health_red:
+        Action: 'Blink'
+        DutyOn: 50
+        Period: 1000
+        Priority: 'On'
+    health_green:
+        Action: 'Blink'
+        DutyOn: 50
+        Period: 1000
+        Priority: 'On'
