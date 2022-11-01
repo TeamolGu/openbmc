@@ -1,0 +1,152 @@
+{
+    "version" : "default-for-test",
+    "sensors" : [
+        {
+            "name": "FAN0",
+            "type": "fan",
+            "readPath": "/sys/class/hwmon/hwmon0/pwm1",
+            "writePath": "/sys/class/hwmon/hwmon0/pwm1",
+            "min": 0,
+            "max": 255
+        },
+        {
+            "name": "FAN1",
+            "type": "fan",
+            "readPath": "/sys/class/hwmon/hwmon0/pwm2",
+            "writePath": "/sys/class/hwmon/hwmon0/pwm2",
+            "min": 0,
+            "max": 255
+        },
+        {
+            "name": "FAN2",
+            "type": "fan",
+            "readPath": "/sys/class/hwmon/hwmon0/pwm3",
+            "writePath": "/sys/class/hwmon/hwmon0/pwm3",
+            "min": 0,
+            "max": 255
+        },
+        {
+            "name": "FAN3",
+            "type": "fan",
+            "readPath": "/sys/class/hwmon/hwmon0/pwm5",
+            "writePath": "/sys/class/hwmon/hwmon0/pwm5",
+            "min": 0,
+            "max": 255
+        },
+        {
+            "name": "FAN4",
+            "type": "fan",
+            "readPath": "/sys/class/hwmon/hwmon0/pwm6",
+            "writePath": "/sys/class/hwmon/hwmon0/pwm6",
+            "min": 0,
+            "max": 255
+        },
+        {
+            "name": "FAN5",
+            "type": "fan",
+            "readPath": "/sys/class/hwmon/hwmon0/pwm7",
+            "writePath": "/sys/class/hwmon/hwmon0/pwm7",
+            "min": 0,
+            "max": 255
+        },
+        {
+            "name": "In_Temp",
+            "type": "temp",
+            "readPath": "/xyz/openbmc_project/sensors/temperature/In_Temp",
+            "ignoreDbusMinMax": true,
+            "timeout": 0
+        }
+    ],
+
+    "zones" : [
+        {
+            "id": 0,
+			"name":"SYS_FANS",
+            "minThermalOutput": 10.0,
+            "failsafePercent": 30.0,
+            "pids": [
+                {
+                    "name": "FAN_0-5",
+                    "type": "fan",
+                    "inputs": ["FAN0",
+                               "FAN1",
+                               "FAN2",
+                               "FAN3",
+                               "FAN4",
+                               "FAN5"],
+                    "setpoint": 20.0,
+                    "pid": {
+                        "samplePeriod": 1.0,
+                        "proportionalCoeff": 0.0,
+                        "integralCoeff": 0.0,
+                        "feedFwdOffsetCoeff": 0.0,
+                        "feedFwdGainCoeff": 1.0,
+                        "integralLimit_min": 0.0,
+                        "integralLimit_max": 0.0,
+                        "outLim_min": 0.0,
+                        "outLim_max": 100.0,
+                        "slewNeg": 0.0,
+                        "slewPos": 0.0
+                    }
+                },
+                {
+                    "name": "In_TempS",
+                    "type": "stepwise",
+                    "inputs": ["In_Temp"],
+                    "setpoint": 0.0,
+                    "pid": {
+                        "samplePeriod": 1.0,
+                        "positiveHysteresis": 0.0,
+                        "negativeHysteresis": 0.0,
+                        "isCeiling": false,
+                        "reading": {
+                            "0": 15,
+                            "1": 22,
+                            "2": 23,
+                            "3": 24,
+                            "4": 25,
+                            "5": 26,
+                            "6": 27,
+                            "7": 28,
+                            "8": 29,
+                            "9": 30,
+                            "10": 31,
+                            "11": 32,
+                            "12": 33,
+                            "13": 34,
+                            "14": 35,
+                            "15": 36,
+                            "16": 37,
+                            "17": 38,
+                            "18": 39,
+                            "19": 40
+                        },
+                        "output": {
+                            "0": 20,
+                            "1": 22,
+                            "2": 23,
+                            "3": 24,
+                            "4": 25,
+                            "5": 26,
+                            "6": 27,
+                            "7": 28,
+                            "8": 29,
+                            "9": 30,
+                            "10": 32,
+                            "11": 34,
+                            "12": 36,
+                            "13": 38,
+                            "14": 40,
+                            "15": 42,
+                            "16": 44,
+                            "17": 46,
+                            "18": 48,
+                            "19": 50
+                        }
+                    }
+                }
+            ]
+        }
+    ]
+}
+

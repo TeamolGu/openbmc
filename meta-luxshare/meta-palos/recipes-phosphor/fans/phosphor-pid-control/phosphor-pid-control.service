@@ -4,11 +4,14 @@ After=xyz.openbmc_project.EntityManager.service
 After=xyz.openbmc_project.ObjectMapper.service
 
 [Service]
+Type=simple
+ExecStartPre=/usr/bin/set-platform-json-config.sh
+ExecStart=/usr/bin/swampd -t
 Restart=always
-ExecStart={bindir}/swampd -t
 RestartSec=5
 StartLimitInterval=0
-Type=simple
+ExecStopPost=/usr/bin/set-platform-json-config.sh
+
 
 [Install]
 WantedBy=multi-user.target
