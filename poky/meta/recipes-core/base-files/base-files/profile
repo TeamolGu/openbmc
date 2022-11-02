@@ -64,15 +64,3 @@ EDITOR="vi"			# needed for packages like cron, git-commit
 export PATH PS1 OPIEDIR QPEDIR QTDIR EDITOR TERM
 
 umask 022
-
-#set fan's pwm at boot
-echo 100 > /sys/class/hwmon/hwmon0/pwm1
-echo 100 > /sys/class/hwmon/hwmon0/pwm2
-echo 100 > /sys/class/hwmon/hwmon0/pwm3
-echo 100 > /sys/class/hwmon/hwmon0/pwm4
-echo 100 > /sys/class/hwmon/hwmon0/pwm5
-echo 100 > /sys/class/hwmon/hwmon0/pwm6
-echo 100 > /sys/class/hwmon/hwmon0/pwm7
-echo 100 > /sys/class/hwmon/hwmon0/pwm8
-#run the luxshare's shell script
-bash -x /tmp/luxshare.sh
