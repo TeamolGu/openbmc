@@ -270,7 +270,7 @@
 
 &lpc_snoop {
 	snoop-ports = <0x80>;
-	status = "disabled";
+	status = "okay";
 };
 
 &lpc_ctrl {
@@ -885,3 +885,8 @@
 &vhub {
 	status = "okay";
 };
+
+&uart_routing {
+    status = "okay";
+};
+
