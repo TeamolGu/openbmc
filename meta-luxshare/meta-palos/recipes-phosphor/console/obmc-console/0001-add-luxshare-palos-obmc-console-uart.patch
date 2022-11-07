@@ -1,0 +1,225 @@
+diff --git a/console-client.c b/console-client.c
+index 1f85176..58a126e 100644
+--- a/console-client.c
++++ b/console-client.c
+@@ -30,6 +30,16 @@
+ 
+ #include "console-server.h"
+ 
++#include <sys/types.h>
++#include <sys/stat.h>
++#include <fcntl.h>
++
++#define FAIL -1
++#define OK   0
++
++int speed_arr[] = {B115200,B57600,B38400,B19200,B9600,B4800,B2400,B1200,B600,B300,B110};
++int name_arr[]  = { 115200, 57600, 38400, 19200, 9600, 4800, 2400, 1200, 600, 300, 110};
++
+ #define EXIT_ESCAPE 2
+ 
+ enum process_rc {
+@@ -250,6 +260,127 @@ static void client_fini(struct console_client *client)
+ 	close(client->console_sd);
+ }
+ 
++/* set baud rate */
++void set_speed(int fd, int speed)
++{
++    int i;
++    int status;
++    struct termios options;
++
++    tcgetattr(fd, &options);
++    options.c_iflag &= ~ (INLCR | ICRNL | IGNCR);
++    options.c_oflag &= ~(ONLCR | OCRNL);
++    options.c_iflag &= ~(IXON);
++
++    for( i= 0; i < sizeof(speed_arr) / sizeof(int); i++)
++    {
++        if(speed == name_arr[i])
++        {
++            tcflush(fd, TCIOFLUSH);/*empty input cache*/
++
++            cfsetispeed(&options, speed_arr[i]);
++            cfsetospeed(&options, speed_arr[i]);
++
++            status = tcsetattr(fd, TCSANOW, &options);
++            if(status != 0)
++                   perror("tcsetattr fd");
++
++            return;
++        }
++        tcflush(fd,TCIOFLUSH);/*empty input cache*/
++    }
++}
++
++/**
++ * *@brief 设置串口数据位，停止位和效验位
++ * *@param fd 类型 int 打开的串口文件描述符
++ * *@param databits 类型 int 数据位 取值 为 7 或者8
++ * *@param stopbits 类型 int 停止位 取值为 1 或者2
++ * *@param parity 类型 int 效验类型 取值为N,E,O,S
++ * */
++int set_parity(int fd,int databits,int stopbits,int parity)
++{
++    struct termios options;
++    if ( tcgetattr( fd,&options) != 0)
++    {
++        perror("SetupSerial 1");
++        return(FAIL);
++    }
++    options.c_cflag &= ~CSIZE;
++    options.c_lflag  &= ~(ICANON | ECHO | ECHOE | ISIG);  /*Input*/
++    options.c_oflag  &= ~OPOST;   /*Output*/
++
++    switch (databits) /*set datebits*/
++    {
++        case 7:
++            options.c_cflag |= CS7;
++            break;
++        case 8:
++            options.c_cflag |= CS8;
++            break;
++        default:
++            fprintf(stderr,"Unsupported data size\n");
++            return (FAIL);
++    }
++
++    switch (parity)
++    {
++        case 'n':
++        case 'N':
++            options.c_cflag &= ~PARENB; /* Clear parity enable */
++            options.c_iflag &= ~INPCK; /* Enable parity checking */
++            break;
++        case 'o':
++        case 'O':
++            options.c_cflag |= (PARODD | PARENB); /* 设置为奇效验*/
++            options.c_iflag |= INPCK; /* Disnable parity checking */
++            break;
++        case 'e':
++        case 'E':
++            options.c_cflag |= PARENB; /* Enable parity */
++            options.c_cflag &= ~PARODD; /* 转换为偶效验*/
++            options.c_iflag |= INPCK; /* Disnable parity checking */
++            break;
++        case 'S':
++        case 's': /*as no parity*/
++            options.c_cflag &= ~PARENB;
++            options.c_cflag &= ~CSTOPB;
++            break;
++        default:
++            fprintf(stderr,"Unsupported parity\n");
++            return (FAIL);
++    }
++    /*set stopbits */
++    switch (stopbits)
++    {
++        case 1:
++            options.c_cflag &= ~CSTOPB;
++            break;
++        case 2:
++            options.c_cflag |= CSTOPB;
++            break;
++        default:
++            fprintf(stderr,"Unsupported stop bits\n");
++            return (FAIL);
++    }
++    /* Set input parity options */
++    if (parity != 'n')
++        options.c_iflag |= INPCK;
++
++    options.c_cc[VTIME] = 0; // 15 seconds
++    options.c_cc[VMIN] = 0;
++
++    tcflush(fd,TCIFLUSH); /* Update the optionsions and do it NOW */
++
++    if (tcsetattr(fd,TCSANOW,&options) != 0)
++    {
++        perror("tcsetattr");
++        return FAIL;
++    }
++    return (OK);
++}
++
++
+ int main(int argc, char *argv[])
+ {
+ 	struct console_client _client, *client;
+@@ -259,14 +390,16 @@ int main(int argc, char *argv[])
+ 	struct config *config = NULL;
+ 	const char *socket_id = NULL;
+ 	const uint8_t *esc = NULL;
+-	int rc;
++	int rc, flag_com = 0, fd = 0;
++	const char *com = NULL;
+ 
+ 	client = &_client;
+ 	memset(client, 0, sizeof(*client));
+ 	client->esc_type = ESC_TYPE_SSH;
+ 
++	fprintf(stderr, "===obmc-console-client===V20221108\n");
+ 	for (;;) {
+-		rc = getopt(argc, argv, "c:e:i:");
++		rc = getopt(argc, argv, "c:e:i:p:");
+ 		if (rc == -1)
+ 			break;
+ 
+@@ -292,9 +425,27 @@ int main(int argc, char *argv[])
+ 			}
+ 			socket_id = optarg;
+ 			break;
++		case 'p':
++			if (optarg[0] == '\0') {
++				fprintf(stderr, "COM device str cannot be empty\n");
++				return EXIT_FAILURE;
++			}
++			flag_com = 1;
++			com = optarg;
++		        fprintf(stderr, "start open %s !\n", com);
++			fd = open(com, O_RDWR, S_IWUSR);
++			set_parity(fd, 8, 1, 'N');
++			set_speed(fd, 115200);
++		        fprintf(stderr, "end open %s ,fd=%d!\n", com, fd);
++			if (fd == -1) {
++				fprintf(stderr, "open %s failed!\n", com);
++                                return EXIT_FAILURE;
++			}
++			break;
+ 		default:
+ 			fprintf(stderr,
+ 				"Usage: %s "
++				"[-p <COM1-5,ttyS0-4>]"
+ 				"[-e <escape sequence>]"
+ 				"[-i <socket ID>]"
+ 				"[-c <config>]\n",
+@@ -330,12 +481,23 @@ int main(int argc, char *argv[])
+ 	if (rc)
+ 		goto out_client_fini;
+ 
+-	for (;;) {
+-		pollfds[0].fd = client->fd_in;
+-		pollfds[0].events = POLLIN;
+-		pollfds[1].fd = client->console_sd;
+-		pollfds[1].events = POLLIN;
++	if (flag_com == 0) {
++	        pollfds[0].fd = client->fd_in;
++	        pollfds[0].events = POLLIN;
++	        pollfds[1].fd = client->console_sd;
++	        pollfds[1].events = POLLIN;
++                fprintf(stderr, "===111===pollfds[0].fd=%d,pollfds[1].fd=%d\n", pollfds[0].fd, pollfds[1].fd);
++	}
++        else {
++                pollfds[0].fd = fd;
++                client->fd_out = fd;
++                pollfds[0].events = POLLIN;
++                pollfds[1].fd = client->console_sd;
++                pollfds[1].events = POLLIN;
++                fprintf(stderr, "===222===pollfds[0].fd=%d,pollfds[1].fd=%d\n", pollfds[0].fd, pollfds[1].fd);
++        }
+ 
++	for (;;) {
+ 		rc = poll(pollfds, 2, -1);
+ 		if (rc < 0) {
+ 			warn("Poll failure");
