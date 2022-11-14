@@ -7,6 +7,7 @@ SYSTEMD_SERVICE:${PN} = "phosphor-pid-control.service"
 SRC_URI += " \
     file://default.json \
 	file://set-platform-json-config.sh \
+	file://0001-Supports-fan-manual-mode.patch \
 "
 FILES:${PN} += " \
 	/usr/share/swampd/default.json \

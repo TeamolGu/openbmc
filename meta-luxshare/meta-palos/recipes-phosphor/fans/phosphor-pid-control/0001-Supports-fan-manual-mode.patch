@@ -1,0 +1,397 @@
+From 706ae6388931cc077ea6a2bc91a119226fa38fa5 Mon Sep 17 00:00:00 2001
+From: IHAD <Cunjin.Tao@luxshare-ict.com>
+Date: Sun, 13 Nov 2022 17:59:49 -0800
+Subject: [PATCH 1/1] Supports fan manual mode
+
+---
+ Makefile.am            |  4 ++-
+ main.cpp               |  7 +++++-
+ manual/builder.cpp     | 18 +++++++++++++
+ manual/builder.hpp     | 13 ++++++++++
+ manual/manual.cpp      | 57 ++++++++++++++++++++++++++++++++++++++++++
+ manual/manual.hpp      | 50 ++++++++++++++++++++++++++++++++++++
+ pid/builder.cpp        |  7 +++++-
+ pid/pidloop.cpp        |  2 +-
+ pid/pidloop.hpp        |  2 ++
+ pid/zone.cpp           |  6 +++++
+ pid/zone.hpp           |  2 ++
+ pid/zone_interface.hpp |  2 +-
+ sensors/manager.cpp    |  5 ++++
+ sensors/manager.hpp    |  6 +++++
+ 14 files changed, 176 insertions(+), 5 deletions(-)
+ create mode 100644 manual/builder.cpp
+ create mode 100644 manual/builder.hpp
+ create mode 100644 manual/manual.cpp
+ create mode 100644 manual/manual.hpp
+
+diff --git a/Makefile.am b/Makefile.am
+index 7465a72..74debaa 100644
+--- a/Makefile.am
++++ b/Makefile.am
+@@ -111,7 +111,9 @@ libswampd_la_SOURCES = \
+ 	pid/pidloop.cpp \
+ 	pid/tuning.cpp \
+ 	build/buildjson.cpp \
+-	experiments/drive.cpp
++	experiments/drive.cpp \
++	manual/manual.cpp \
++	manual/builder.cpp
+ 
+ libmanualcmdsdir = ${libdir}/ipmid-providers
+ libmanualcmds_LTLIBRARIES = libmanualcmds.la
+diff --git a/main.cpp b/main.cpp
+index db15b8d..2e172f6 100644
+--- a/main.cpp
++++ b/main.cpp
+@@ -28,6 +28,8 @@
+ #include "sensors/builder.hpp"
+ #include "sensors/buildjson.hpp"
+ #include "sensors/manager.hpp"
++#include "manual/manual.hpp"
++#include "manual/builder.hpp"
+ #include "util.hpp"
+ 
+ #include <CLI/CLI.hpp>
+@@ -57,6 +59,8 @@ std::map<std::string, conf::SensorConfig> sensorConfig = {};
+ std::map<int64_t, conf::PIDConf> zoneConfig = {};
+ /* The configuration converted Zone configuration. */
+ std::map<int64_t, conf::ZoneConfig> zoneDetailsConfig = {};
++/* Add for manualcontrol */
++bool HoldAllZones = false;
+ 
+ } // namespace pid_control
+ 
+@@ -82,6 +86,7 @@ void restartControlLoops()
+     static SensorManager mgmr;
+     static std::unordered_map<int64_t, std::shared_ptr<ZoneInterface>> zones;
+     static std::vector<std::shared_ptr<boost::asio::steady_timer>> timers;
++    static std::shared_ptr<ManualControl> manual;
+     static bool isCanceling = false;
+ 
+     for (const auto& timer : timers)
+@@ -131,8 +136,8 @@ void restartControlLoops()
+     }
+ 
+     mgmr = buildSensors(sensorConfig, passiveBus, hostBus);
++    manual = buildManualControl(mgmr, modeControlBus);
+     zones = buildZones(zoneConfig, zoneDetailsConfig, mgmr, modeControlBus);
+-
+     if (0 == zones.size())
+     {
+         std::cerr << "No zones defined, exiting.\n";
+diff --git a/manual/builder.cpp b/manual/builder.cpp
+new file mode 100644
+index 0000000..ce65e4f
+--- /dev/null
++++ b/manual/builder.cpp
+@@ -0,0 +1,18 @@
++#include "manual/builder.hpp"
++
++namespace pid_control
++{
++
++static constexpr auto objectPath = "/xyz/openbmc_project/settings/fanctrl/manualcontrol";
++
++std::shared_ptr<ManualControl>
++    buildManualControl(SensorManager& mgr, sdbusplus::bus::bus& modeControlBus)
++{
++	auto objpath = std::make_shared<ManualControl>(
++		mgr, modeControlBus,
++		objectPath);
++
++    return objpath;
++}
++
++} // namespace pid_control
+diff --git a/manual/builder.hpp b/manual/builder.hpp
+new file mode 100644
+index 0000000..44243f4
+--- /dev/null
++++ b/manual/builder.hpp
+@@ -0,0 +1,13 @@
++#pragma once
++#include "manual/manual.hpp"
++#include "sensors/manager.hpp"
++
++#include <sdbusplus/bus.hpp>
++
++namespace pid_control
++{
++
++std::shared_ptr<ManualControl>
++    buildManualControl(SensorManager& mgr, sdbusplus::bus::bus& modeControlBus);
++
++}
+diff --git a/manual/manual.cpp b/manual/manual.cpp
+new file mode 100644
+index 0000000..70297b6
+--- /dev/null
++++ b/manual/manual.cpp
+@@ -0,0 +1,57 @@
++#include "manual.hpp"
++
++#include <string>
++
++using tstamp = std::chrono::high_resolution_clock::time_point;
++using namespace std::literals::chrono_literals;
++
++namespace pid_control
++{
++
++bool ManualControl::manual(bool value)
++{
++    if (value)
++    {
++        HoldAllZones = true;
++    }
++    else
++    {
++        HoldAllZones = false;
++    }
++    _manual = value;
++    return ManualObject::manual(value);
++}
++
++std::vector<std::string> ManualControl::fans(std::vector<std::string> value)
++{
++    return ManualObject::fans(value);
++}
++
++std::vector<int32_t> ManualControl::speeds(std::vector<int32_t> value)
++{
++    // invalid mode
++    if (!_manual)
++    {
++        return ManualObject::speeds(std::vector<std::int32_t>(getFanNames().size(), -1));
++    }
++    // invalid param
++    if (getFanNames().size() != value.size())
++    {
++        return ManualObject::speeds(std::vector<std::int32_t>(getFanNames().size(), -1));
++    }
++    for (unsigned int i=0; i<getFanNames().size(); i++)
++    {
++        unsigned int v = static_cast<unsigned int>(value[i]);
++        v = v < 100 ? v : 100;
++        value[i] = v;
++         _mgr.getSensor(getFanNames()[i])->write((double)(v)/100);
++    }
++    return ManualObject::speeds(value);
++}
++
++std::vector<std::string> ManualControl::getFanNames(void)
++{
++    return _mgr.getFanNames();
++}
++
++} // namespace pid_control
+diff --git a/manual/manual.hpp b/manual/manual.hpp
+new file mode 100644
+index 0000000..1474399
+--- /dev/null
++++ b/manual/manual.hpp
+@@ -0,0 +1,50 @@
++#pragma once
++
++#include "sensors/manager.hpp"
++#include "sensors/sensor.hpp"
++
++#include <sdbusplus/bus.hpp>
++#include <sdbusplus/server.hpp>
++#include <xyz/openbmc_project/Control/Manual/server.hpp>
++
++#include <string>
++#include <vector>
++
++template <typename... T>
++using ServerObject = typename sdbusplus::server::object::object<T...>;
++using ManualInterface = sdbusplus::xyz::openbmc_project::Control::server::Manual;
++using ManualObject = ServerObject<ManualInterface>;
++
++namespace pid_control
++{
++
++extern bool HoldAllZones;
++
++class ManualControl : public ManualObject
++{
++  public:
++    ManualControl(const SensorManager& mgr, sdbusplus::bus::bus& bus,
++                const char* objPath) :
++        ManualObject(bus, objPath,
++                   ManualObject::action::defer_emit),
++        _mgr(mgr)
++    {
++      ManualObject::manual(_manual);
++      ManualObject::fans(getFanNames());
++      ManualObject::speeds(std::vector<std::int32_t>(getFanNames().size(), -1));
++      emit_object_added();
++    }
++
++    bool manual(bool value) override;
++    std::vector<std::string> fans(std::vector<std::string> value) override;
++    std::vector<int32_t> speeds(std::vector<int32_t> value) override;
++
++    std::vector<std::string> getFanNames(void);
++    
++
++  private:
++    bool _manual = false;
++    const SensorManager& _mgr;
++};
++
++} // namespace pid_control
+diff --git a/pid/builder.cpp b/pid/builder.cpp
+index 505ca98..790d2f8 100644
+--- a/pid/builder.cpp
++++ b/pid/builder.cpp
+@@ -25,6 +25,8 @@
+ #include "pid/zone_interface.hpp"
+ 
+ #include <sdbusplus/bus.hpp>
++#include <boost/algorithm/string.hpp>
++#include <boost/algorithm/string/trim.hpp>
+ 
+ #include <cstdint>
+ #include <iostream>
+@@ -58,6 +60,7 @@ std::unordered_map<int64_t, std::shared_ptr<ZoneInterface>>
+          * down to a byte in at least some cases causing weird behaviors.
+          */
+         auto zoneConf = zoneConfigs.find(zoneId);
++		std::string fans{};
+         if (zoneConf == zoneConfigs.end())
+         {
+             /* The Zone doesn't have a configuration, bail. */
+@@ -90,11 +93,14 @@ std::unordered_map<int64_t, std::shared_ptr<ZoneInterface>>
+                 {
+                     inputs.push_back(i);
+                     zone->addFanInput(i);
++					fans += " ";
++					fans += i;
+                 }
+ 
+                 auto pid = FanController::createFanPid(zone.get(), name, inputs,
+                                                        info.pidInfo);
+                 zone->addFanPID(std::move(pid));
++				zone->fans(boost::trim_copy(fans));
+             }
+             else if (isThermalType(info.type))
+             {
+@@ -129,7 +135,6 @@ std::unordered_map<int64_t, std::shared_ptr<ZoneInterface>>
+             }
+             std::cerr << "\n";
+         }
+-
+         zone->emit_object_added();
+         zones[zoneId] = std::move(zone);
+     }
+diff --git a/pid/pidloop.cpp b/pid/pidloop.cpp
+index a5d0daf..3761cc7 100644
+--- a/pid/pidloop.cpp
++++ b/pid/pidloop.cpp
+@@ -100,7 +100,7 @@ void pidControlLoop(std::shared_ptr<ZoneInterface> zone,
+          */
+ 
+         // Check if we should just go back to sleep.
+-        if (zone->getManualMode())
++        if (zone->getManualMode() || HoldAllZones)
+         {
+             pidControlLoop(zone, timer, isCanceling, false, ms100cnt);
+             return;
+diff --git a/pid/pidloop.hpp b/pid/pidloop.hpp
+index f9b78b3..3e23409 100644
+--- a/pid/pidloop.hpp
++++ b/pid/pidloop.hpp
+@@ -7,6 +7,8 @@
+ namespace pid_control
+ {
+ 
++extern bool HoldAllZones;
++
+ /**
+  * Main pid control loop for a given zone.
+  * This function calls itself indefinitely in an async loop to calculate
+diff --git a/pid/zone.cpp b/pid/zone.cpp
+index 1eda992..8f52821 100644
+--- a/pid/zone.cpp
++++ b/pid/zone.cpp
+@@ -504,4 +504,10 @@ bool DbusPidZone::failSafe() const
+     return getFailSafeMode();
+ }
+ 
++std::string DbusPidZone::fans(std::string value)
++{
++    return ModeObject::fans(value);
++}
++
++
+ } // namespace pid_control
+diff --git a/pid/zone.hpp b/pid/zone.hpp
+index c73ad39..fd953fb 100644
+--- a/pid/zone.hpp
++++ b/pid/zone.hpp
+@@ -92,6 +92,8 @@ class DbusPidZone : public ZoneInterface, public ModeObject
+     bool manual(bool value) override;
+     /* Method for reading whether in fail-safe mode over dbus */
+     bool failSafe() const override;
++    /* Method for setting the fans for a zone */
++    std::string fans(std::string value) override;
+ 
+   private:
+     std::ofstream _log;
+diff --git a/pid/zone_interface.hpp b/pid/zone_interface.hpp
+index 982e051..61d5339 100644
+--- a/pid/zone_interface.hpp
++++ b/pid/zone_interface.hpp
+@@ -76,7 +76,7 @@ class ZoneInterface
+      * mode (the default).
+      */
+     virtual bool getManualMode(void) const = 0;
+-
++    
+     /** Returns true if a redundant fan PWM write is needed. Redundant write
+      * is used when returning the fan to automatic mode from manual mode.
+      */
+diff --git a/sensors/manager.cpp b/sensors/manager.cpp
+index 95d2a6b..cf0c9af 100644
+--- a/sensors/manager.cpp
++++ b/sensors/manager.cpp
+@@ -37,6 +37,11 @@ void SensorManager::addSensor(const std::string& type, const std::string& name,
+     }
+ 
+     _sensorTypeList[type].push_back(name);
++    if (type == "fan")
++    {
++        _fannames.push_back(name);
++        std::sort(_fannames.begin(), _fannames.end());
++    }
+ }
+ 
+ } // namespace pid_control
+diff --git a/sensors/manager.hpp b/sensors/manager.hpp
+index 6fcd275..d879733 100644
+--- a/sensors/manager.hpp
++++ b/sensors/manager.hpp
+@@ -45,6 +45,11 @@ class SensorManager
+         return _sensorMap.at(name).get();
+     }
+ 
++    std::vector<std::string> getFanNames(void) const
++    {
++        return _fannames;
++    }
++
+     sdbusplus::bus::bus& getPassiveBus(void)
+     {
+         return *_passiveListeningBus;
+@@ -58,6 +63,7 @@ class SensorManager
+   private:
+     std::map<std::string, std::unique_ptr<Sensor>> _sensorMap;
+     std::map<std::string, std::vector<std::string>> _sensorTypeList;
++    std::vector<std::string> _fannames;
+ 
+     sdbusplus::bus::bus* _passiveListeningBus;
+     sdbusplus::bus::bus* _hostSensorBus;
+-- 
+2.17.1
+
