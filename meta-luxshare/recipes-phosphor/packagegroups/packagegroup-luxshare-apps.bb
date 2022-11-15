@@ -46,6 +46,5 @@ RDEPENDS:${PN}-system = " \
         ipmitool \
         phosphor-post-code-manager \
         phosphor-host-postd \
-        phosphor-state-manager-chassis \
         phosphor-logging \   
         "
