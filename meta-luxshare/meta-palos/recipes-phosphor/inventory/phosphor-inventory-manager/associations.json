@@ -22,6 +22,8 @@
                     "/xyz/openbmc_project/sensors/temperature/Pci0_Temp",
                     "/xyz/openbmc_project/sensors/temperature/Out_Temp",
                     "/xyz/openbmc_project/sensors/temperature/MB_In0_Temp",
+                    "/xyz/openbmc_project/sensors/temperature/CPU0_Temp",
+                    "/xyz/openbmc_project/sensors/temperature/CPU1_Temp",
 
 
                     "/xyz/openbmc_project/sensors/voltage/DC_GPIW0",
@@ -181,7 +183,8 @@
                     "/xyz/openbmc_project/sensors/temperature/Pci0_Temp",
                     "/xyz/openbmc_project/sensors/temperature/Out_Temp",
                     "/xyz/openbmc_project/sensors/temperature/MB_In0_Temp",
-
+                    "/xyz/openbmc_project/sensors/temperature/CPU0_Temp",
+                    "/xyz/openbmc_project/sensors/temperature/CPU1_Temp",
 
                     "/xyz/openbmc_project/sensors/voltage/DC_GPIW0",
                     "/xyz/openbmc_project/sensors/voltage/RST_PCIE",
