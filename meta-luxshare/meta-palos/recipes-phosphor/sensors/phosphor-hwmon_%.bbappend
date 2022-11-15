@@ -4,6 +4,7 @@ EXTRA_OEMESON:append:palos = " -Dnegative-errno-on-fail=true"
 
 CHIPS = " \
         bus@1e78a000/i2c-bus@1c0/tmp468@48 \
+        bus@1e78a000/i2c-bus@80/sbtsi@4c \
         pwm-tacho-controller@1e786000 \
         "
 ITEMSFMT = "ahb/apb/{0}.conf"

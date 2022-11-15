@@ -341,6 +341,11 @@
 
 &i2c1 {
 	status = "okay";
+	sbtsi@4c {
+		compatible = "amd,sbtsi";
+		reg = <0x4c>;
+	};
+
 };
 
 &i2c2 {
