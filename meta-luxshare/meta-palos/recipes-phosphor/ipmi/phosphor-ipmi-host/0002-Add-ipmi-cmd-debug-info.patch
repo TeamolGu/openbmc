@@ -1,0 +1,123 @@
+From ce6f8089628f67ffac798239c497c76e1d472c57 Mon Sep 17 00:00:00 2001
+From: liyuxiang <yuxiang.li@luxshare-ict.com>
+Date: Mon, 14 Nov 2022 10:42:08 +0800
+Subject: [PATCH] Add ipmi cmd debug info
+
+---
+ ipmid-new.cpp | 16 ++++++++++++++++
+ meson.build   |  2 ++
+ 2 files changed, 18 insertions(+)
+
+diff --git a/ipmid-new.cpp b/ipmid-new.cpp
+index 7f558cd..59ed528 100644
+--- a/ipmid-new.cpp
++++ b/ipmid-new.cpp
+@@ -18,6 +18,8 @@
+ #include "settings.hpp"
+ 
+ #include <dlfcn.h>
++#include <fmt/core.h>
++#include <fmt/format.h>
+ 
+ #include <algorithm>
+ #include <any>
+@@ -26,6 +28,7 @@
+ #include <dcmihandler.hpp>
+ #include <exception>
+ #include <filesystem>
++
+ #include <forward_list>
+ #include <host-cmd-manager.hpp>
+ #include <ipmid-host/cmd.hpp>
+@@ -49,6 +52,7 @@
+ #include <utility>
+ #include <vector>
+ 
++
+ namespace fs = std::filesystem;
+ 
+ using namespace phosphor::logging;
+@@ -151,6 +155,8 @@ bool registerHandler(int prio, NetFn netFn, Cmd cmd, Privilege priv,
+     if (!std::get<HandlerBase::ptr>(mapCmd) || std::get<int>(mapCmd) <= prio)
+     {
+         mapCmd = item;
++        // std::printf("Registering NetFn:[0x%X], Cmd:[0x%X]\n", netFn, cmd);
++        log<level::DEBUG>(fmt::format("Registering NetFn[{:#04X}], Cmd:[{:#04X}]", netFn, cmd).c_str());
+         return true;
+     }
+     return false;
+@@ -169,6 +175,7 @@ bool registerGroupHandler(int prio, Group group, Cmd cmd, Privilege priv,
+     if (!std::get<HandlerBase::ptr>(mapCmd) || std::get<int>(mapCmd) <= prio)
+     {
+         mapCmd = item;
++        log<level::DEBUG>(fmt::format("Registering Group[{:#04X}], Cmd:[{:#04X}]", group, cmd).c_str());
+         return true;
+     }
+     return false;
+@@ -187,6 +194,7 @@ bool registerOemHandler(int prio, Iana iana, Cmd cmd, Privilege priv,
+     if (!std::get<HandlerBase::ptr>(mapCmd) || std::get<int>(mapCmd) <= prio)
+     {
+         mapCmd = item;
++        log<level::DEBUG>(fmt::format("Registering OEM[{:#08X}], Cmd:[{:#04X}]", iana, cmd).c_str());
+         return true;
+     }
+     return false;
+@@ -240,6 +248,9 @@ message::Response::ptr executeIpmiCommandCommon(
+     Cmd cmd = request->ctx->cmd;
+     unsigned int key = makeCmdKey(keyCommon, cmd);
+     auto cmdIter = handlers.find(key);
++
++    log<level::DEBUG>(fmt::format("Exec NetFn[{:#04X}], Cmd:[{:#04X}], Data:[{:02X}]",
++                                   request->ctx->netFn, request->ctx->cmd, fmt::join(request->payload.raw, "|")).c_str());
+     if (cmdIter != handlers.end())
+     {
+         // only return the filter response if the command is found
+@@ -287,6 +298,8 @@ message::Response::ptr executeIpmiGroupCommand(message::Request::ptr request)
+     auto group = static_cast<Group>(bytes);
+     message::Response::ptr response =
+         executeIpmiCommandCommon(groupHandlerMap, group, request);
++    log<level::DEBUG>(fmt::format("Exec NetFn[{:#04X}], Group[{:#04X}], Cmd:[{:#04X}], CC:[{:#04X}]",
++                                  request->ctx->netFn, group, request->ctx->cmd, response->cc).c_str());
+     ipmi::message::Payload prefix;
+     prefix.pack(bytes);
+     response->prepend(prefix);
+@@ -304,6 +317,8 @@ message::Response::ptr executeIpmiOemCommand(message::Request::ptr request)
+     auto iana = static_cast<Iana>(bytes);
+     message::Response::ptr response =
+         executeIpmiCommandCommon(oemHandlerMap, iana, request);
++    log<level::DEBUG>(fmt::format("Exec NetFn[{:#04X}], OEM[{:#08X}], Cmd:[{:#04X}], CC:[{:#04X}]",
++                                  request->ctx->netFn, iana, request->ctx->cmd, response->cc).c_str());
+     ipmi::message::Payload prefix;
+     prefix.pack(bytes);
+     response->prepend(prefix);
+@@ -668,6 +683,7 @@ std::forward_list<IpmiProvider> loadProviders(const fs::path& ipmiLibsPath)
+         log<level::DEBUG>("Registering handler",
+                           entry("HANDLER=%s", lib.c_str()));
+ #endif
++        log<level::DEBUG>(fmt::format("Registering handler {}", lib.c_str()).c_str());
+         handles.emplace_front(lib.c_str());
+     }
+     return handles;
+diff --git a/meson.build b/meson.build
+index a7064a6..fb451ab 100644
+--- a/meson.build
++++ b/meson.build
+@@ -84,6 +84,7 @@ add_project_arguments(
+ phosphor_logging_dep = dependency('phosphor-logging')
+ phosphor_dbus_interfaces_dep = dependency('phosphor-dbus-interfaces')
+ sdeventplus_dep = dependency('sdeventplus')
++fmt_dep = dependency('fmt')
+ systemd = dependency('systemd')
+ crypto = dependency('libcrypto', version : '>=1.0.2g')
+ pam = cpp.find_library('pam', required: true)
+@@ -169,6 +170,7 @@ ipmid_pre = [
+   boost_coroutine,
+   crypto,
+   ipmid_dep,
++  fmt_dep,
+   channellayer_dep,
+   mapper,
+   std_cpp_fs
+-- 
+2.17.1
+
