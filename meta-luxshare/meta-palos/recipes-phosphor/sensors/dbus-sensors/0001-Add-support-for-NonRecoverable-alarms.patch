@@ -1,0 +1,63 @@
+From df0e38d417832a128c571967019d1eb31f7240b3 Mon Sep 17 00:00:00 2001
+From: IHAD <Cunjin.Tao@luxshare-ict.com>
+Date: Wed, 23 Nov 2022 01:52:01 -0800
+Subject: [PATCH 1/1] Add support for NonRecoverable alarms
+
+---
+ include/Thresholds.hpp | 6 ++++--
+ src/TMP468Main.cpp     | 4 ++--
+ 2 files changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/include/Thresholds.hpp b/include/Thresholds.hpp
+index 94480bb..5472c0a 100644
+--- a/include/Thresholds.hpp
++++ b/include/Thresholds.hpp
+@@ -20,6 +20,7 @@ enum class Level
+     PERFORMANCELOSS,
+     SOFTSHUTDOWN,
+     HARDSHUTDOWN,
++    NONRECOVERABLE,
+     ERROR
+ };
+ enum class Direction
+@@ -130,12 +131,13 @@ struct ThresholdDefinition
+     const char* levelName;
+ };
+ 
+-constexpr static std::array<thresholds::ThresholdDefinition, 5> thresProp = {
++constexpr static std::array<thresholds::ThresholdDefinition, 6> thresProp = {
+     {{Level::WARNING, 0, "Warning"},
+      {Level::CRITICAL, 1, "Critical"},
+      {Level::PERFORMANCELOSS, 2, "PerformanceLoss"},
+      {Level::SOFTSHUTDOWN, 3, "SoftShutdown"},
+-     {Level::HARDSHUTDOWN, 4, "HardShutdown"}}};
++     {Level::HARDSHUTDOWN, 4, "HardShutdown"},
++     {Level::NONRECOVERABLE, 5, "NonRecoverable"}}};
+ 
+ std::string getInterface(const Level level);
+ 
+diff --git a/src/TMP468Main.cpp b/src/TMP468Main.cpp
+index 25d3584..9a34722 100644
+--- a/src/TMP468Main.cpp
++++ b/src/TMP468Main.cpp
+@@ -308,7 +308,7 @@ void createSensors(
+ 			}
+ 			else
+ 			{
+-				regStr = "";
++				regStr = "1";
+ 			}
+ 
+ 
+@@ -424,7 +424,7 @@ void createSensors(
+             auto& sensor = sensors[sensorName];
+             sensor = nullptr;
+             auto hwmonFile =
+-                getFullHwmonFilePath(directory.string(), "temp1", permitSet);
++                getFullHwmonFilePath(directory.string(), "temp"+regStr, permitSet);
+             if (pathStr.starts_with("/sys/bus/iio/devices"))
+             {
+                 hwmonFile = pathStr;
+-- 
+2.17.1
+
