@@ -3,7 +3,7 @@ SRC_URI += " \
     file://0001-Add-support-for-tmp468.patch \
 	file://0001-Add-support-for-NonRecoverable-alarms.patch \
 "
-PACKAGECONFIG ??= " \
+PACKAGECONFIG:append = " \
 				   tmp468temp \
 				   "
 PACKAGECONFIG[tmp468temp] = "-Dtmp468-temp=enabled"
