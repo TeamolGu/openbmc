@@ -1,0 +1,12 @@
+diff --git a/nbd-proxy.c b/nbd-proxy.c
+index bffe1f9..54c8cf7 100644
+--- a/nbd-proxy.c
++++ b/nbd-proxy.c
+@@ -156,6 +156,7 @@ static int start_nbd_client(struct ctx *ctx)
+ 		execlp("nbd-client", "nbd-client",
+ 				"-u", ctx->sock_path,
+ 				"-n",
++				"-L",
+ 				"-t", timeout_str,
+ 				ctx->config->nbd_device,
+ 				NULL);
