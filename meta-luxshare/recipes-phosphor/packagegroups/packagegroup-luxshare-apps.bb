@@ -47,4 +47,5 @@ RDEPENDS:${PN}-system = " \
         phosphor-post-code-manager \
         phosphor-host-postd \
         phosphor-logging \   
+        luxshare-ipmi-oem \
         "
