@@ -13,46 +13,42 @@
 
 	aliases {
 		serial4 = &uart5;
-		i2c14 = &channel_11_0;
-		i2c15 = &channel_11_1;
-		i2c16 = &channel_11_2;
-		i2c17 = &channel_11_3;
-		i2c18 = &channel_12_0;
-		i2c19 = &channel_12_1;
-		i2c20 = &channel_12_2;
-		i2c21 = &channel_12_3;
-		i2c22 = &channel_13_0;
-		i2c23 = &channel_13_1;
-		i2c24 = &channel_13_2;
-		i2c25 = &channel_13_3;
-		i2c26 = &channel_13_4;
-		i2c27 = &channel_13_5;
-		i2c28 = &channel_13_6;
-		i2c29 = &channel_13_7;
-		i2c30 = &channel_13_8;
-		i2c31 = &channel_13_9;
-		i2c32 = &channel_13_10;
-		i2c33 = &channel_13_11;
-		i2c34 = &channel_13_12;
-		i2c35 = &channel_13_13;
-		i2c36 = &channel_13_14;
-		i2c37 = &channel_13_15;
-		i2c38 = &channel_13_16;
-		i2c39 = &channel_13_17;
-		i2c40 = &channel_13_18;
-		i2c41 = &channel_13_19;
-		i2c42 = &channel_13_20;
-		i2c43 = &channel_13_21;
-		i2c44 = &channel_13_22;
-		i2c45 = &channel_13_23;
-		i2c46 = &channel_13_24;
-		i2c47 = &channel_13_25;
-		i2c48 = &channel_13_26;
-		i2c49 = &channel_13_27;
-		i2c50 = &channel_13_28;
-		i2c51 = &channel_13_29;
-		i2c52 = &channel_13_30;
-		i2c53 = &channel_13_31;
+		i2c14 = &channel_10_0;
+		i2c15 = &channel_10_1;
+		i2c16 = &channel_10_2;
+		i2c17 = &channel_10_3;
+		i2c18 = &channel_13_0;
+		i2c19 = &channel_13_1;
+		i2c20 = &channel_13_2;
+		i2c21 = &channel_13_3;
+		i2c22 = &channel_13_4;
+		i2c23 = &channel_13_5;
+		i2c24 = &channel_13_6;
+		i2c25 = &channel_13_7;
+		i2c26 = &channel_13_8;
+		i2c27 = &channel_13_9;
+		i2c28 = &channel_13_10;
+		i2c29 = &channel_13_11;
+		i2c30 = &channel_13_12;
+		i2c31 = &channel_13_13;
+		i2c32 = &channel_13_14;
+		i2c33 = &channel_13_15;
+		i2c34 = &channel_13_16;
+		i2c35 = &channel_13_17;
+		i2c36 = &channel_13_18;
+		i2c37 = &channel_13_19;
+		i2c38 = &channel_13_20;
+		i2c39 = &channel_13_21;
+		i2c40 = &channel_13_22;
+		i2c41 = &channel_13_23;
+		i2c42 = &channel_13_24;
+		i2c43 = &channel_13_25;
+		i2c44 = &channel_13_26;
+		i2c45 = &channel_13_27;
+		i2c46 = &channel_13_28;
+		i2c47 = &channel_13_29;
+		i2c48 = &channel_13_30;
+		i2c49 = &channel_13_31;
 	};
 
 	chosen {
@@ -197,7 +193,7 @@
 	gpio-line-names =
 	/*A0-A7*/	"BMC_FRU_WP","THERMAL_ALERT_N","LED_BMC_UID_LED_N","RST_CPU0_HP_SW_N",
 			"","","","",
-	/*B0-B7*/	"RST_BMC_HDDBP_RST_N","LED_BMC_HBLED_N_R0","BMC_CPU0_THERMTRIP_N","BMC_CPU1_THERMTRIP_N",
+	/*B0-B7*/	"SEL_I2C_HDDBP_SW","LED_BMC_HBLED_N_R0","BMC_CPU0_THERMTRIP_N","BMC_CPU1_THERMTRIP_N",
 			"BMC_INTRUSION_OUTPUT","CPU0_LPC_PD_N","CPU0_LPC_PME_N","PS_HP_ALERT_BMC_N",
 	/*C0-C7*/	"","","","","","","","",
 	/*D0-D7*/	"","","","","","","","",
@@ -425,12 +421,6 @@
 		shunt-resistor = <1000>;
 	};
 
-/* 	ina220@42 {
-		compatible = "ti,ina220";
-		reg = <0x4a>;
-		shunt-resistor = <1000>;
-	}; */
-
 	ina220@45 {
 		compatible = "ti,ina220";
 		reg = <0x45>;
@@ -545,68 +535,10 @@
 
 &i2c11 {
 	status = "okay";
-	i2c-switch@70 {
-		compatible = "nxp,pca9546";
-		reg = <0x70>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-		channel_11_0: i2c@0 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			reg = <0>;
-		};
-
-		channel_11_1: i2c@1 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			reg = <1>;
-		};
-
-		channel_11_2: i2c@2 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			reg = <2>;
-		};
-
-		channel_11_3: i2c@3 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			reg = <3>;
-		};
-	};
 };
 
 &i2c12 {
 	status = "okay";
-	i2c-switch@70 {
-		compatible = "nxp,pca9546";
-		reg = <0x70>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-		channel_12_0: i2c@0 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			reg = <0>;
-		};
-
-		channel_12_1: i2c@1 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			reg = <1>;
-		};
-
-		channel_12_2: i2c@2 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			reg = <2>;
-		};
-
-		channel_12_3: i2c@3 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			reg = <3>;
-		};
-	};
 };
 
 &i2c13 {
