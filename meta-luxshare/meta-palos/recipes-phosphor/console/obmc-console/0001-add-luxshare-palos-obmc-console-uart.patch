@@ -1,5 +1,5 @@
 diff --git a/console-client.c b/console-client.c
-index 1f85176..58a126e 100644
+index 1f85176..421d672 100644
 --- a/console-client.c
 +++ b/console-client.c
 @@ -30,6 +30,16 @@
@@ -19,7 +19,62 @@ index 1f85176..58a126e 100644
  #define EXIT_ESCAPE 2
  
  enum process_rc {
-@@ -250,6 +260,127 @@ static void client_fini(struct console_client *client)
+@@ -132,6 +142,36 @@ static enum process_rc process_str_tty(
+ 	return prc;
+ }
+ 
++/* filter the ASCII code 0-9,11-31 from the array input & modify the len after filter action
++ * author: TEAMOL
++ * mail: 28105285@qq.com
++ * date: 20221121
++ * */
++static int sort_array(uint8_t *p, int len)
++{
++	int i, j;
++	int t_len = 0;
++	int fd, rc = 0;
++	char *filename = "/tmp/console.bin";
++
++	fd = open(filename, O_RDWR|O_APPEND|O_CREAT, S_IWUSR);
++        rc = write(fd, p, len);
++	rc++;
++	close(fd);
++
++        for (i = 0; i < len; i++) {
++                //if ((p[i] >= 0 && p[i] <= 9) || (p[i] >= 11 && p[i] <= 31)) { /* filter of ASCII CODES */
++                if ((p[i] == 0) ) {
++	                fprintf(stderr, "===p[%d]=%d\r\n", i, p[i]);
++			t_len++;
++			for (j = i; j <= len - i; j++) {
++			        p[j] = p[j + 1];
++			}
++		}
++	}
++        return (len - t_len);
++}
++
+ static enum process_rc process_tty(struct console_client *client)
+ {
+ 	uint8_t buf[4096];
+@@ -143,6 +183,9 @@ static enum process_rc process_tty(struct console_client *client)
+ 	if (len == 0)
+ 		return PROCESS_EXIT;
+ 
++	fprintf(stderr, "before len=%d\n", len);
++	len = sort_array(buf, len);
++	fprintf(stderr, "after len=%d\n", len);
+ 	switch (client->esc_type)
+ 	{
+ 	case ESC_TYPE_SSH:
+@@ -170,6 +213,7 @@ static int process_console(struct console_client *client)
+ 		return PROCESS_EXIT;
+ 	}
+ 
++	len = sort_array(buf, len);
+ 	rc = write_buf_to_fd(client->fd_out, buf, len);
+ 	return rc ? PROCESS_ERR : PROCESS_OK;
+ }
+@@ -250,6 +294,130 @@ static void client_fini(struct console_client *client)
  	close(client->console_sd);
  }
  
@@ -31,9 +86,10 @@ index 1f85176..58a126e 100644
 +    struct termios options;
 +
 +    tcgetattr(fd, &options);
-+    options.c_iflag &= ~ (INLCR | ICRNL | IGNCR);
++    //options.c_iflag &= ~ (INLCR | ICRNL | IGNCR);
 +    options.c_oflag &= ~(ONLCR | OCRNL);
-+    options.c_iflag &= ~(IXON);
++    //options.c_iflag &= ~(IXON);
++    options.c_iflag &= ~(BRKINT | ICRNL | ISTRIP | IXON);
 +
 +    for( i= 0; i < sizeof(speed_arr) / sizeof(int); i++)
 +    {
@@ -130,8 +186,10 @@ index 1f85176..58a126e 100644
 +    if (parity != 'n')
 +        options.c_iflag |= INPCK;
 +
-+    options.c_cc[VTIME] = 0; // 15 seconds
-+    options.c_cc[VMIN] = 0;
++    //options.c_cc[VTIME] = 0; // 15 seconds
++    //options.c_cc[VMIN] = 0;
++    options.c_cc[VTIME] = 128;
++    options.c_cc[VMIN] = 1;
 +
 +    tcflush(fd,TCIFLUSH); /* Update the optionsions and do it NOW */
 +
@@ -147,7 +205,7 @@ index 1f85176..58a126e 100644
  int main(int argc, char *argv[])
  {
  	struct console_client _client, *client;
-@@ -259,14 +390,16 @@ int main(int argc, char *argv[])
+@@ -259,14 +427,16 @@ int main(int argc, char *argv[])
  	struct config *config = NULL;
  	const char *socket_id = NULL;
  	const uint8_t *esc = NULL;
@@ -159,14 +217,14 @@ index 1f85176..58a126e 100644
  	memset(client, 0, sizeof(*client));
  	client->esc_type = ESC_TYPE_SSH;
  
-+	fprintf(stderr, "===obmc-console-client===V20221108\n");
++	fprintf(stderr, "===obmc-console-client===V20221116\n");
  	for (;;) {
 -		rc = getopt(argc, argv, "c:e:i:");
 +		rc = getopt(argc, argv, "c:e:i:p:");
  		if (rc == -1)
  			break;
  
-@@ -292,9 +425,27 @@ int main(int argc, char *argv[])
+@@ -292,9 +462,27 @@ int main(int argc, char *argv[])
  			}
  			socket_id = optarg;
  			break;
@@ -194,30 +252,27 @@ index 1f85176..58a126e 100644
  				"[-e <escape sequence>]"
  				"[-i <socket ID>]"
  				"[-c <config>]\n",
-@@ -330,12 +481,23 @@ int main(int argc, char *argv[])
- 	if (rc)
+@@ -331,10 +519,19 @@ int main(int argc, char *argv[])
  		goto out_client_fini;
  
--	for (;;) {
+ 	for (;;) {
 -		pollfds[0].fd = client->fd_in;
 -		pollfds[0].events = POLLIN;
 -		pollfds[1].fd = client->console_sd;
 -		pollfds[1].events = POLLIN;
-+	if (flag_com == 0) {
-+	        pollfds[0].fd = client->fd_in;
-+	        pollfds[0].events = POLLIN;
-+	        pollfds[1].fd = client->console_sd;
-+	        pollfds[1].events = POLLIN;
-+	}
-+        else {
-+                pollfds[0].fd = client->fd_in;
-+                client->fd_out = fd;
-+                pollfds[0].events = POLLIN;
-+                pollfds[1].fd = client->console_sd;
-+                pollfds[1].events = POLLIN;
-+        }
++	        if (flag_com == 0) {
++	                pollfds[0].fd = client->fd_in;
++	                pollfds[0].events = POLLIN;
++	                pollfds[1].fd = client->console_sd;
++	                pollfds[1].events = POLLIN;
++	        }
++                else {
++                        pollfds[0].fd = client->fd_in;
++                        client->fd_out = fd;
++                        pollfds[0].events = POLLIN;
++                        pollfds[1].fd = client->console_sd;
++                        pollfds[1].events = POLLIN;
++                }
  
-+	for (;;) {
  		rc = poll(pollfds, 2, -1);
  		if (rc < 0) {
- 			warn("Poll failure");
