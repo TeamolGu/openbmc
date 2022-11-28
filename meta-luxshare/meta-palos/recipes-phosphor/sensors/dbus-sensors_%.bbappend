@@ -2,6 +2,7 @@ FILESEXTRAPATHS:prepend := "${THISDIR}/${PN}:"
 SRC_URI += " \
     file://0001-Add-support-for-tmp468.patch \
 	file://0001-Add-support-for-NonRecoverable-alarms.patch \
+	file://0001-Change-the-TMP468-flag.patch \
 "
 PACKAGECONFIG:append = " \
 				   tmp468temp \

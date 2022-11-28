@@ -3,7 +3,7 @@ image_path=/tmp/images/$1/
 image=/tmp/images/$1/cpld.jed
 manifest=/tmp/images/$1/MANIFEST
 type='cpld'
-cfg_i2c_bus=/dev/i2c-54
+cfg_i2c_bus=/dev/i2c-14
 
 function flash_cpld() {
     if [[ ! -f $image ]]; then
