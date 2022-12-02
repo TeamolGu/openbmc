@@ -1,5 +1,130 @@
-/xyz/openbmc_project/inventory/system/board/Palos:
-    eventReadingType: 111
-    offset: 2
-    sensorID: 251
-    sensorType: 18
+/xyz/openbmc_project/sensors/temperature/Inlet_Temp: 
+    eventReadingType: 01
+    offset: 0
+    sensorID: 0x10
+    sensorType: 1
+/xyz/openbmc_project/sensors/temperature/Outlet_Temp:
+    eventReadingType: 01
+    offset: 0
+    sensorID: 0x11
+    sensorType: 1
+/xyz/openbmc_project/sensors/temperature/CPU0_Temp:
+    eventReadingType: 01
+    offset: 0
+    sensorID: 0x12
+    sensorType: 1
+/xyz/openbmc_project/sensors/temperature/CPU1_Temp:
+    eventReadingType: 01
+    offset: 0
+    sensorID: 0x13
+    sensorType: 1
+/xyz/openbmc_project/sensors/temperature/DIMM0G0_Temp:
+    eventReadingType: 01
+    offset: 0
+    sensorID: 0x14
+    sensorType: 1
+/xyz/openbmc_project/sensors/temperature/DIMM0G1_Temp:
+    eventReadingType: 01
+    offset: 0
+    sensorID: 0x15
+    sensorType: 1
+/xyz/openbmc_project/sensors/temperature/DIMM1G0_Temp:
+    eventReadingType: 01
+    offset: 0
+    sensorID: 0x16
+    sensorType: 1
+/xyz/openbmc_project/sensors/temperature/DIMM1G1_Temp:
+    eventReadingType: 01
+    offset: 0
+    sensorID: 0x17
+    sensorType: 1
+/xyz/openbmc_project/sensors/temperature/CPU0_VRR_Temp:
+    eventReadingType: 01
+    offset: 0
+    sensorID: 0x18
+    sensorType: 1
+/xyz/openbmc_project/sensors/temperature/CPU0_VRF_Temp:
+    eventReadingType: 01
+    offset: 0
+    sensorID: 0x19
+    sensorType: 1
+/xyz/openbmc_project/sensors/temperature/CPU1_VRR_Temp:
+    eventReadingType: 01
+    offset: 0
+    sensorID: 0x1A
+    sensorType: 1
+/xyz/openbmc_project/sensors/temperature/CPU1_VRF_Temp:
+    eventReadingType: 01
+    offset: 0
+    sensorID: 0x1B
+    sensorType: 1
+/xyz/openbmc_project/sensors/temperature/PS0_Temp:
+    eventReadingType: 01
+    offset: 0
+    sensorID: 0x1C
+    sensorType: 1
+/xyz/openbmc_project/sensors/temperature/PS1_Temp:
+    eventReadingType: 01
+    offset: 0
+    sensorID: 0x1D
+    sensorType: 1
+/xyz/openbmc_project/sensors/temperature/PCIe0_Zone_Temp:
+    eventReadingType: 01
+    offset: 0
+    sensorID: 0x1E
+    sensorType: 1
+/xyz/openbmc_project/sensors/temperature/MB_Inlet0_Temp:
+    eventReadingType: 01
+    offset: 0
+    sensorID: 0x1F
+    sensorType: 1
+/xyz/openbmc_project/sensors/temperature/MB_Inlet1_Temp:
+    eventReadingType: 01
+    offset: 0
+    sensorID: 0x20
+    sensorType: 1
+/xyz/openbmc_project/sensors/temperature/CX5_Temp1:
+    eventReadingType: 01
+    offset: 0
+    sensorID: 0x21
+    sensorType: 1
+/xyz/openbmc_project/sensors/temperature/CX5_Temp2:
+    eventReadingType: 01
+    offset: 0
+    sensorID: 0x22
+    sensorType: 1
+/xyz/openbmc_project/sensors/temperature/CX5_Temp3:
+    eventReadingType: 01
+    offset: 0
+    sensorID: 0x23
+    sensorType: 1
+/xyz/openbmc_project/sensors/temperature/CX5_Temp4:
+    eventReadingType: 01
+    offset: 0
+    sensorID: 0x24
+    sensorType: 1
+/xyz/openbmc_project/sensors/temperature/CX5_Temp5:
+    eventReadingType: 01
+    offset: 0
+    sensorID: 0x25
+    sensorType: 1
+/xyz/openbmc_project/sensors/temperature/CX6_Temp:
+    eventReadingType: 01
+    offset: 0
+    sensorID: 0x26
+    sensorType: 1
+/xyz/openbmc_project/sensors/temperature/NVMe_Front_Temp:
+    eventReadingType: 01
+    offset: 0
+    sensorID: 0x27
+    sensorType: 1
+/xyz/openbmc_project/sensors/temperature/NVMe_Rear_Temp:
+    eventReadingType: 01
+    offset: 0
+    sensorID: 0x28
+    sensorType: 1
+/xyz/openbmc_project/sensors/temperature/Max_Phy_Temp:
+    eventReadingType: 01
+    offset: 0
+    sensorID: 0x29
+    sensorType: 1
