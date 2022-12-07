@@ -1,4 +1,7 @@
 FILESEXTRAPATHS:append := ":${THISDIR}/${PN}"
+
+SRCREV = "4d4df5b47a9957b16e0d85d7998a8444c554326a"
+
 SRC_URI:append = " file://palos_baseboard.json \
                    file://blocklist.json \
                    file://blacklist.json \
