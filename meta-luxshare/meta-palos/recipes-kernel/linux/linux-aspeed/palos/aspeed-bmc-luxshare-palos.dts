@@ -133,8 +133,8 @@
 
 		uid_button {
 			label = "uid_button";
-			gpios = <&gpio ASPEED_GPIO(Z, 7) GPIO_ACTIVE_LOW>;
-			linux,code = <ASPEED_GPIO(Q, 7)>;
+			gpios = <&gpio ASPEED_GPIO(I, 0) GPIO_ACTIVE_LOW>;
+			linux,code = <ASPEED_GPIO(I, 0)>;
 		};
 	};
 };
