@@ -1,0 +1,257 @@
+From fd84c5696db357985aac416c68ba8f1b61b66ad7 Mon Sep 17 00:00:00 2001
+From: IHAD <Cunjin.Tao@luxshare-ict.com>
+Date: Mon, 12 Dec 2022 21:31:07 -0800
+Subject: [PATCH 1/1] Add message and severity parsing
+
+---
+ elog_entry.cpp        | 166 ++++++++++++++++++++++++++++++++++++++++++
+ elog_entry.hpp        |   9 +++
+ elog_translations.hpp |  13 ++++
+ 3 files changed, 188 insertions(+)
+ create mode 100644 elog_translations.hpp
+
+diff --git a/elog_entry.cpp b/elog_entry.cpp
+index 1bd70c2..59b576a 100644
+--- a/elog_entry.cpp
++++ b/elog_entry.cpp
+@@ -2,10 +2,12 @@
+ 
+ #include "elog_serialize.hpp"
+ #include "log_manager.hpp"
++#include "elog_translations.hpp"
+ 
+ #include <unistd.h>
+ 
+ #include <xyz/openbmc_project/Common/File/error.hpp>
++#include <regex>
+ 
+ namespace phosphor
+ {
+@@ -14,6 +16,170 @@ namespace logging
+ 
+ // TODO Add interfaces to handle the error log id numbering
+ 
++std::smatch search(const std::string text, const std::string pattern)
++{
++    std::smatch ret;
++    std::regex regex_pattern(pattern);
++    if(std::regex_search(text, ret, regex_pattern))
++    {
++        return ret;
++    }
++    else
++    {
++        throw "regex_search err";
++    }
++}
++
++void Entry::tryTranslation(const std::vector<std::string>& additionalDataErr)
++{
++    std::map<std::string, std::string> addMap{};
++    std::vector<uint8_t> data(3, 0xFF);
++    std::string sensorinfo{};
++    std::string offsetinfo{};
++    std::string errinfo{};
++    std::string assert{};
++    std::string msgerr{};
++    Level severityerr;
++    uint8_t sensorclass=0x00;
++    for(auto iter : additionalDataErr)
++    {
++        // iter should be "a=b" before it was passed around.
++        addMap[iter.substr(0, iter.find("="))] = iter.substr(iter.find("=")+1, iter.size());
++    }
++    //for(auto iter:addMap)
++    //{
++    //    std::cout << iter.first << " : " << iter.second << std::endl;
++    //}
++
++    // Message : Temperature Front0_Temp | Upper Critical going high | Deasserted | Reading -98 > Threshold -48 degrees C
++    // as 6 "EVENT_DIR=1" "GENERATOR_ID=32" "RECORD_TYPE=2" "SENSOR_DATA=5000B3" "SENSOR_PATH=/xyz/openbmc_project/sensors/voltage/P1V8_P1_VDD" "_PID=224"
++    auto it = addMap.find("SENSOR_DATA");
++    if(it == addMap.end())
++        return;
++    for(uint32_t i=0; i<data.size(); i++)
++    {
++        data[i] = strtol((it->second).substr(i*2, 2).c_str(), NULL, 16);
++    }
++
++    it = addMap.find("EVENT_DIR");
++    if(it == addMap.end())
++        return;
++    if(it->second == "0")
++    {
++        assert = "Deasserted";
++    }
++    else if(it->second == "1")
++    {
++        assert = "Asserted";
++    }
++
++    it = addMap.find("SENSOR_PATH");
++    if(it == addMap.end())
++        return;
++    auto res = search(it->second, ".*/(.*)/(.*)/(.*)$");
++    if(res.size() != 4)
++        return;
++    if(res[1] == "sensors")
++    {
++        sensorclass = 0x01;
++    }
++    else
++    {
++        // more things will do on here.
++        return;
++    }
++    if(sensorclass == 0x01)
++    {
++        switch(data[0] & 0x0F)
++        {
++            case 0x00:
++                offsetinfo += "Lower Non-critical going low";
++                severityerr = Entry::Level::Warning;
++                errinfo += " < ";
++                break;
++            case 0x01:
++                offsetinfo += "Lower Non-critical going high";
++                break;
++            case 0x02:
++                offsetinfo += "Lower Critical going low";
++                severityerr = Entry::Level::Critical;
++                errinfo += " < ";
++                break;
++            case 0x03:
++                offsetinfo += "Lower Critical going high";
++                break;
++            case 0x04:
++                offsetinfo += "Lower Non-recoverable going low";
++                severityerr = Entry::Level::Critical;
++                errinfo += " < ";
++                break;
++            case 0x05:
++                offsetinfo += "Lower Non-recoverable going high";
++                break;
++            case 0x06:
++                offsetinfo += "Upper Non-critical going low";
++                break;
++            case 0x07:
++                offsetinfo += "Upper Non-critical going high";
++                severityerr = Entry::Level::Warning;
++                errinfo += " > ";
++                break;
++            case 0x08:
++                offsetinfo += "Upper Critical going low";
++                break;
++            case 0x09:
++                offsetinfo += "Upper Critical going high";
++                severityerr = Entry::Level::Critical;
++                errinfo += " > ";
++                break;
++            case 0x0A:
++                offsetinfo += "Upper Non-recoverable going low";
++                break;
++            case 0x0B:
++                offsetinfo += "Upper Non-recoverable going high";
++                severityerr = Entry::Level::Critical;
++                errinfo += " > ";
++                break;
++            default:
++                return;
++        }
++    }
++    else
++    {
++        // more things will do on here.
++        return;
++    }
++    auto iter = translationTypes.find(res[2]);
++    if(iter != translationTypes.end())
++    {
++        sensorinfo = sensorinfo + iter->second + " " + std::string(res[3]);
++    }
++    switch(data[0] & 0xC0)
++    {
++        case 0x40:
++            errinfo = "Reading " + std::to_string(data[1]) + errinfo;
++            break;
++        default:
++            // more things will do on here.
++            return;
++    }
++    switch(data[0] & 0x30)
++    {
++        case 0x10:
++            errinfo =  errinfo + std::to_string(data[2]) + " degrees C";
++            break;
++        default:
++            // more things will do on here.
++            return;
++
++    }
++
++    msgerr = sensorinfo + " | " + offsetinfo + " | " + assert + " | " + errinfo;
++    message(msgerr, false);
++    severityerr = (assert == "Deasserted") ? Entry::Level::Informational : severityerr;
++    severity(severityerr, false);
++}
++
+ void Entry::delete_()
+ {
+     parent.erase(id());
+diff --git a/elog_entry.hpp b/elog_entry.hpp
+index 609f905..a5de18a 100644
+--- a/elog_entry.hpp
++++ b/elog_entry.hpp
+@@ -11,6 +11,8 @@
+ #include <xyz/openbmc_project/Association/Definitions/server.hpp>
+ #include <xyz/openbmc_project/Common/FilePath/server.hpp>
+ 
++#include <iostream>
++
+ namespace phosphor
+ {
+ namespace logging
+@@ -88,6 +90,8 @@ class Entry : public EntryIfaces
+ 
+         // Emit deferred signal.
+         this->emit_object_added();
++        // Try to translate Message and Severity.
++        tryTranslation(additionalData());
+     };
+ 
+     /** @brief Constructor that puts an "empty" error object on the bus,
+@@ -106,6 +110,11 @@ class Entry : public EntryIfaces
+         id(entryId, true);
+     };
+ 
++    /** Try to translate Message and Severity.
++     *  @param[in] additionalDataErr - The error metadata.
++     */
++    void tryTranslation(const std::vector<std::string>& additionalDataErr);
++
+     /** @brief Set resolution status of the error.
+      *  @param[in] value - boolean indicating resolution
+      *  status (true = resolved)
+diff --git a/elog_translations.hpp b/elog_translations.hpp
+new file mode 100644
+index 0000000..4b252d3
+--- /dev/null
++++ b/elog_translations.hpp
+@@ -0,0 +1,13 @@
++#include <stdlib.h>
++
++namespace phosphor
++{
++namespace logging
++{
++    const std::map<std::string, std::string> translationTypes =
++    {
++        {"temperature","Temperature"},
++        {"voltage","Voltage"},
++    };
++}
++}
+\ No newline at end of file
+-- 
+2.17.1
+
