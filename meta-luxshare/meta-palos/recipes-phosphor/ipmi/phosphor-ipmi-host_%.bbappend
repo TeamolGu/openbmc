@@ -12,6 +12,7 @@ EXTRA_OEMESON:append:palos= " \
 
 SRC_URI:append:palos = " file://0001-add-luxshare-palos-ipmicmd-test.patch \
                          file://0002-Add-ipmi-cmd-debug-info.patch \
+                         file://0004-ipmi-sensors-support-non-recoverable-alarms.patch \
     "
 
 PACKAGE_ARCH = "${MACHINE_ARCH}"

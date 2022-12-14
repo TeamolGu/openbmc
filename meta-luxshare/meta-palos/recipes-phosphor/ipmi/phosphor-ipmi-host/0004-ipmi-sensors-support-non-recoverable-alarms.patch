@@ -1,0 +1,125 @@
+From ae7a01a53eac39f6d55cd83af50cde6ddcac4227 Mon Sep 17 00:00:00 2001
+From: liyuxiang <yuxiang.li@luxshare-ict.com>
+Date: Tue, 13 Dec 2022 19:30:59 +0800
+Subject: [PATCH] ipmi sensors support non recoverable alarms
+
+---
+ include/ipmid/types.hpp |  2 ++
+ sensordatahandler.hpp   | 31 ++++++++++++++++++++++++++++---
+ sensorhandler.cpp       | 35 +++++++++++++++++++++++++++++++++++
+ 3 files changed, 65 insertions(+), 3 deletions(-)
+
+diff --git a/include/ipmid/types.hpp b/include/ipmid/types.hpp
+index a36d612..2edb007 100644
+--- a/include/ipmid/types.hpp
++++ b/include/ipmid/types.hpp
+@@ -215,8 +215,10 @@ enum class ThresholdMask
+ {
+     NON_CRITICAL_LOW_MASK = 0x01,
+     CRITICAL_LOW_MASK = 0x02,
++    NON_RECOVERABLE_LOW_MASK = 0x04,
+     NON_CRITICAL_HIGH_MASK = 0x08,
+     CRITICAL_HIGH_MASK = 0x10,
++    NON_RECOVERABLE_HIGH_MASK = 0x20,
+ };
+ 
+ static constexpr uint8_t maxContainedEntities = 4;
+diff --git a/sensordatahandler.hpp b/sensordatahandler.hpp
+index 601f5cd..9301a9b 100644
+--- a/sensordatahandler.hpp
++++ b/sensordatahandler.hpp
+@@ -325,10 +325,35 @@ GetSensorResponse readingData(const Info& sensorInfo)
+     {
+         warningAlarmLow = false;
+     }
++
++    bool nonRecoverableAlarmLow;
++    try
++    {
++        nonRecoverableAlarmLow = std::get<bool>(ipmi::getDbusProperty(
++            bus, service, sensorInfo.sensorPath,
++            "xyz.openbmc_project.Sensor.Threshold.NonRecoverable", "NonRecoverableAlarmLow"));
++    }
++    catch (const std::exception& e)
++    {
++        nonRecoverableAlarmLow = false;
++    }
++    bool nonRecoverableAlarmHigh;
++    try
++    {
++        nonRecoverableAlarmHigh = std::get<bool>(ipmi::getDbusProperty(
++            bus, service, sensorInfo.sensorPath,
++            "xyz.openbmc_project.Sensor.Threshold.NonRecoverable", "NonRecoverableAlarmHigh"));
++    }
++    catch (const std::exception& e)
++    {
++        nonRecoverableAlarmHigh = false;
++    }
+     response.thresholdLevelsStates =
+-        (static_cast<uint8_t>(critAlarmHigh) << 3) |
+-        (static_cast<uint8_t>(critAlarmLow) << 2) |
+-        (static_cast<uint8_t>(warningAlarmHigh) << 1) |
++        (static_cast<uint8_t>(nonRecoverableAlarmHigh) << 5) |
++        (static_cast<uint8_t>(critAlarmHigh) << 4) |
++        (static_cast<uint8_t>(warningAlarmHigh) << 3) |
++        (static_cast<uint8_t>(nonRecoverableAlarmLow) << 2) |
++        (static_cast<uint8_t>(critAlarmLow) << 1) |
+         (static_cast<uint8_t>(warningAlarmLow));
+ 
+     return response;
+diff --git a/sensorhandler.cpp b/sensorhandler.cpp
+index e04319c..03e5be0 100644
+--- a/sensorhandler.cpp
++++ b/sensorhandler.cpp
+@@ -675,6 +675,8 @@ get_sdr::GetSensorThresholdsResponse
+         "xyz.openbmc_project.Sensor.Threshold.Warning";
+     constexpr auto criticalThreshIntf =
+         "xyz.openbmc_project.Sensor.Threshold.Critical";
++    constexpr auto nonRecoverableThreshIntf =
++        "xyz.openbmc_project.Sensor.Threshold.NonRecoverable";
+ 
+     const auto iter = ipmi::sensor::sensors.find(sensorNum);
+     const auto info = iter->second;
+@@ -768,6 +770,39 @@ get_sdr::GetSensorThresholdsResponse
+         }
+     }
+ 
++    ipmi::PropertyMap nonRecoverableThresholds;
++    ec = ipmi::getAllDbusProperties(ctx, service, info.sensorPath,
++                                    nonRecoverableThreshIntf, nonRecoverableThresholds);
++    if (!ec)
++    {
++        double nonRecoverableLow = ipmi::mappedVariant<double>(
++            nonRecoverableThresholds, "NonRecoverableLow",
++            std::numeric_limits<double>::quiet_NaN());
++        double nonRecoverableHigh = ipmi::mappedVariant<double>(
++            nonRecoverableThresholds, "NonRecoverableHigh",
++            std::numeric_limits<double>::quiet_NaN());
++
++        if (std::isfinite(nonRecoverableLow))
++        {
++            nonRecoverableLow *= std::pow(10, info.scale - info.exponentR);
++            rawData = round((nonRecoverableLow - info.scaledOffset) / info.coefficientM);
++            resp.lowerNonRecoverable =
++                static_cast<uint8_t>(std::clamp(rawData, minClamp, maxClamp));
++            resp.validMask |= static_cast<uint8_t>(
++                ipmi::sensor::ThresholdMask::NON_RECOVERABLE_LOW_MASK);
++        }
++
++        if (std::isfinite(nonRecoverableHigh))
++        {
++            nonRecoverableHigh *= std::pow(10, info.scale - info.exponentR);
++            rawData = round((nonRecoverableHigh - info.scaledOffset) / info.coefficientM);
++            resp.upperNonRecoverable =
++                static_cast<uint8_t>(std::clamp(rawData, minClamp, maxClamp));
++            resp.validMask |= static_cast<uint8_t>(
++                ipmi::sensor::ThresholdMask::NON_RECOVERABLE_HIGH_MASK);
++        }
++    }
++
+     return resp;
+ }
+ 
+-- 
+2.17.1
+
