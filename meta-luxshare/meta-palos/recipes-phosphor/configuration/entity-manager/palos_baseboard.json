@@ -824,7 +824,7 @@
         {
             "Address": "0x48",
             "Bus": 6,
-            "Name": "PCIe_Zone_Temp",
+            "Name": "PCIe0_Zone_Temp",
             "PollRate": 1.0,
             "Reg": "0x6",
             "Thresholds": [
