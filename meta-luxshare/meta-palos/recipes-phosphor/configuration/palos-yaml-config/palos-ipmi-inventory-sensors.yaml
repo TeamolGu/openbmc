@@ -214,3 +214,36 @@
     offset: 0
     sensorID: 0x60
     sensorType: 2
+
+
+/xyz/openbmc_project/sensors/power/Fan_Power:
+    eventReadingType: 01
+    offset: 0
+    sensorID: 0x80
+    sensorType: 0x08
+/xyz/openbmc_project/sensors/power/CPU0_Power:
+    eventReadingType: 01
+    offset: 0
+    sensorID: 0x81
+    sensorType: 0x08
+/xyz/openbmc_project/sensors/power/CPU1_Power:
+    eventReadingType: 01
+    offset: 0
+    sensorID: 0x82
+    sensorType: 0x08
+/xyz/openbmc_project/sensors/power/PS0_Power:
+    eventReadingType: 01
+    offset: 0
+    sensorID: 0x83
+    sensorType: 0x08
+/xyz/openbmc_project/sensors/power/PS1_Power:
+    eventReadingType: 01
+    offset: 0
+    sensorID: 0x84
+    sensorType: 0x08
+/xyz/openbmc_project/sensors/power/Total_Power:
+    eventReadingType: 01
+    offset: 0
+    sensorID: 0x85
+    sensorType: 0x08
+
