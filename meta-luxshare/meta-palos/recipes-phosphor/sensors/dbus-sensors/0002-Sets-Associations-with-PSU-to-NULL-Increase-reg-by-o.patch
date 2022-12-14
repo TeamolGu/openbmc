@@ -1,0 +1,42 @@
+From 2a8c7ef5d59f729bec9edf9c2d0794cb47efaf96 Mon Sep 17 00:00:00 2001
+From: IHAD <Cunjin.Tao@luxshare-ict.com>
+Date: Wed, 14 Dec 2022 00:35:19 -0800
+Subject: [PATCH 1/1] Sets Associations with PSU to NULL&&Increase reg by one
+
+---
+ src/HwmonTempMain.cpp | 2 +-
+ src/PSUSensor.cpp     | 5 ++++-
+ 2 files changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/HwmonTempMain.cpp b/src/HwmonTempMain.cpp
+index 309222d..75a6c3e 100644
+--- a/src/HwmonTempMain.cpp
++++ b/src/HwmonTempMain.cpp
+@@ -234,7 +234,7 @@ static SensorConfigMap
+ 
+             SensorConfigKey key = {std::get<uint64_t>(busCfg->second),
+                                    std::get<uint64_t>(addrCfg->second),
+-                                   regCfg == cfg.end() ? 1 : std::get<uint64_t>(regCfg->second)};
++                                   regCfg == cfg.end() ? 1+1 : std::get<uint64_t>(regCfg->second)+1};
+             SensorConfig val = {path.str, cfgData, intf, cfg, hwmonNames};
+ 
+             auto [it, inserted] = configMap.emplace(key, std::move(val));
+diff --git a/src/PSUSensor.cpp b/src/PSUSensor.cpp
+index 6e2934f..03f3241 100644
+--- a/src/PSUSensor.cpp
++++ b/src/PSUSensor.cpp
+@@ -92,7 +92,10 @@ PSUSensor::PSUSensor(const std::string& path, const std::string& objectType,
+ 
+     association = objectServer.add_interface(dbusPath, association::interface);
+ 
+-    createInventoryAssoc(conn, association, configurationPath);
++    //Lux : set Association to NULL.
++    //createInventoryAssoc(conn, association, configurationPath);
++    association->register_property("Associations", std::vector<Association>());
++    association->initialize();
+ }
+ 
+ PSUSensor::~PSUSensor()
+-- 
+2.17.1
+
