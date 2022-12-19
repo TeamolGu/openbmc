@@ -706,7 +706,7 @@
         },
         {
             "Name": "System Fan connector 4",
-            "Pwm": 3,
+            "Pwm": 4,
             "Tachs": [
                 8,
                 9
@@ -715,7 +715,7 @@
         },
         {
             "Name": "System Fan connector 5",
-            "Pwm": 4,
+            "Pwm": 5,
             "Tachs": [
                 10,
                 11
@@ -724,7 +724,7 @@
         },
         {
             "Name": "System Fan connector 6",
-            "Pwm": 5,
+            "Pwm": 6,
             "Tachs": [
                 12,
                 13
@@ -1196,7 +1196,7 @@
                     "Value": 0
                 }
             ],
-            "Type": "pmbus"
+            "Type": "ISL69243"
         },
         {
             "Address": "0x5E",
@@ -1228,7 +1228,7 @@
                     "Value": 0
                 }
             ],
-            "Type": "pmbus"
+            "Type": "ISL69243"
         },
         {
             "Address": "0x58",
@@ -1260,7 +1260,7 @@
                     "Value": 0
                 }
             ],
-            "Type": "pmbus"
+            "Type": "ISL69247"
         },
         {
             "Address": "0x5C",
@@ -1292,7 +1292,7 @@
                     "Value": 0
                 }
             ],
-            "Type": "pmbus"
+            "Type": "ISL69247"
         },
         {
             "Address": "0x60",
@@ -1324,7 +1324,7 @@
                     "Value": 0
                 }
             ],
-            "Type": "pmbus"
+            "Type": "PXE1610"
         },
         {
             "Address": "0x64",
@@ -1356,7 +1356,7 @@
                     "Value": 0
                 }
             ],
-            "Type": "pmbus"
+            "Type": "PXE1610"
         },
         {
             "Address": "0x70",
@@ -1388,7 +1388,7 @@
                     "Value": 0
                 }
             ],
-            "Type": "pmbus"
+            "Type": "PXE1610"
         },
         {
             "Address": "0x74",
@@ -1420,7 +1420,7 @@
                     "Value": 0
                 }
             ],
-            "Type": "pmbus"
+            "Type": "PXE1610"
         },
         {
             "Address": "0x58",
