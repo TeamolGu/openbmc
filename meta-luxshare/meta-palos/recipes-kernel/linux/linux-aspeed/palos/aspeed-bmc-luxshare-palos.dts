@@ -102,35 +102,27 @@
 			led-pattern = <500 500>;
 		};
 
-/* 		power {
-			label = "power";
-			gpios = <&gpio ASPEED_GPIO(R, 1) GPIO_ACTIVE_LOW>;
-		}; */
-
 		uid {
 			label = "uid";
 			gpios = <&gpio ASPEED_GPIO(A, 2) GPIO_ACTIVE_LOW>;
+			default-state = "off";
 		};
 
 		health_green {
 			label = "health_green";
-			gpios = <&gpio ASPEED_GPIO(H, 1) GPIO_ACTIVE_LOW>;
+			gpios = <&gpio ASPEED_GPIO(H, 1) GPIO_ACTIVE_HIGH>;
+			default-state = "on";
 		};
 
 		health_red {
 			label = "health_red";
-			gpios = <&gpio ASPEED_GPIO(H, 2) GPIO_ACTIVE_LOW>;
+			gpios = <&gpio ASPEED_GPIO(H, 2) GPIO_ACTIVE_HIGH>;
+			default-state = "off";
 		};
 	};
 
 	gpio-keys {
 		compatible = "gpio-keys";
-/* 		burn-in-signal {
-			label = "burn-in";
-			gpios = <&gpio ASPEED_GPIO(R, 5) GPIO_ACTIVE_LOW>;
-			linux,code = <ASPEED_GPIO(R, 5)>;
-		}; */
-
 		uid_button {
 			label = "uid_button";
 			gpios = <&gpio ASPEED_GPIO(I, 0) GPIO_ACTIVE_LOW>;
@@ -288,7 +280,7 @@
 
 &uart2 {
 	status = "okay";
-	/*pinctrl-names = "default";
+/*	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_txd2_default
 			&pinctrl_rxd2_default
 			&pinctrl_nrts2_default
@@ -296,7 +288,7 @@
 			&pinctrl_ndsr2_default
 			&pinctrl_ncts2_default
 			&pinctrl_ndcd2_default
-			&pinctrl_nri2_default>;*/
+			&pinctrl_nri2_default>; */
 };
 
 &uart3 {
@@ -341,7 +333,6 @@
 		compatible = "amd,sbtsi";
 		reg = <0x4c>;
 	};
-
 };
 
 &i2c2 {
@@ -372,41 +363,10 @@
 &i2c6 {
 	status = "okay";
 
-	adm1278@10 {
+	/* adm1278@10 {
 		compatible = "adi,adm1278";
 		reg = <0x10>;
 		Rsense = <500>;
-	};
-
-	tla2024@49 {
-		compatible = "ti,tla2024";
-		reg = <0x49>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		channel0@0 {
-			reg = <0>;
-			ti,gain = <2>;
-			ti,datarate = <4>;
-		};
-
-		channel1@1 {
-			reg = <1>;
-			ti,gain = <2>;
-			ti,datarate = <4>;
-		};
-
-		channel2@0 {
-			reg = <2>;
-			ti,gain = <2>;
-			ti,datarate = <4>;
-		};
-
-		channel3@1 {
-			reg = <3>;
-			ti,gain = <2>;
-			ti,datarate = <4>;
-		};
 	};
 
 	ina220@40 {
@@ -449,7 +409,7 @@
 		compatible = "ti,ina220";
 		reg = <0x46>;
 		shunt-resistor = <1000>;
-	};
+	}; */
 
 	mp5023@42 {
 		compatible = "mps,mp5023";
@@ -465,20 +425,20 @@
 
 &i2c7 {
 	status = "okay";
-	psu0fru: psu0fru@50 {
+/*	psu0fru: psu0fru@50 {
 		compatible = "atmel,24c256";
 		reg = <0x53>;
-	};
+	}; */
 
 	psu0: power-supply@58 {
 		compatible = "pmbus";
 		reg = <0x58>;
 	};
 
-	psu1fru: psu1fru@51 {
+/*	psu1fru: psu1fru@51 {
 		compatible = "atmel,24c256";
 		reg = <0x51>;
-	};
+	}; */
 
 	psu1: power-supply@59 {
 		compatible = "pmbus";
@@ -797,22 +757,6 @@
 		aspeed,fan-tach-ch = /bits/ 8 <0x0e 0x0f>;
 	};
 };
-
-/* &gpio {
-	pin_gpio_i3 {
-		gpio-hog;
-		gpios = <ASPEED_GPIO(I, 3) GPIO_ACTIVE_HIGH>;
-		output-low;
-		line-name = "NCSI_BMC_R_SEL";
-	};
-
-	pin_gpio_b6 {
-		gpio-hog;
-		gpios = <ASPEED_GPIO(B, 6) GPIO_ACTIVE_HIGH>;
-		output-low;
-		line-name = "EN_NCSI_SWITCH_N";
-	};
-}; */
 
 &video {
 	status = "okay";
