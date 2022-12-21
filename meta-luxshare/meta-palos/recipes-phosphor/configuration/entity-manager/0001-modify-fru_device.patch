@@ -1,0 +1,25 @@
+From b68ad57acfd5da0e61f1438824a64e39ece14a3b Mon Sep 17 00:00:00 2001
+From: JYH <yahan.jiang@luxshare-ict.com>
+Date: Wed, 21 Dec 2022 15:40:20 +0800
+Subject: [PATCH] modify fru_device
+
+---
+ src/fru_device.cpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/fru_device.cpp b/src/fru_device.cpp
+index d2af2a2..f8cbcd0 100644
+--- a/src/fru_device.cpp
++++ b/src/fru_device.cpp
+@@ -60,7 +60,7 @@ extern "C"
+ 
+ namespace fs = std::filesystem;
+ static constexpr bool debug = false;
+-constexpr size_t maxFruSize = 512;
++constexpr size_t maxFruSize = 10208;
+ constexpr size_t maxEepromPageIndex = 255;
+ constexpr size_t busTimeoutSeconds = 5;
+ 
+-- 
+2.17.1
+

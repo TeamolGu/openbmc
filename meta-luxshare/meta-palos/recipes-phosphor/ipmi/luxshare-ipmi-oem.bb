@@ -16,7 +16,7 @@ LIBRARY_NAMES = "libluxshareoemcmds.so"
 S = "${WORKDIR}/git"
 SRC_URI = "git://10.53.19.12/openbmc/luxshare-ipmi-oem.git;branch=master;protocol=http"
 # SRCREV = "${AUTOREV}"
-SRCREV = "78dced249df05cc7a32c9dacc744c919056c7db1"
+SRCREV = "5b9f16319cf6b70049666fa0b84f2aca0a2e2d8a"
 
 HOSTIPMI_PROVIDER_LIBRARY += "${LIBRARY_NAMES}"
 NETIPMI_PROVIDER_LIBRARY += "${LIBRARY_NAMES}"
