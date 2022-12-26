@@ -50,7 +50,7 @@
             "max": 255
         },
         {
-            "name": "In_Temp",
+            "name": "Inlet_Temp",
             "type": "temp",
             "readPath": "/xyz/openbmc_project/sensors/temperature/In_Temp",
             "ignoreDbusMinMax": true,
@@ -90,9 +90,9 @@
                     }
                 },
                 {
-                    "name": "In_TempS",
+                    "name": "Inlet_TempS",
                     "type": "stepwise",
-                    "inputs": ["In_Temp"],
+                    "inputs": ["Inlet_Temp"],
                     "setpoint": 0.0,
                     "pid": {
                         "samplePeriod": 1.0,

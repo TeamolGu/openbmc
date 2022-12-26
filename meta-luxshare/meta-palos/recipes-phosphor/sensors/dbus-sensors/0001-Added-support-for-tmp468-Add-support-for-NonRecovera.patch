@@ -1,0 +1,287 @@
+From 67406ee5a1a537f9b3abd3577752a9c5f480415b Mon Sep 17 00:00:00 2001
+From: IHAD <Cunjin.Tao@luxshare-ict.com>
+Date: Tue, 6 Dec 2022 17:57:32 -0800
+Subject: [PATCH 1/1] Added support for tmp468&&Add support for NonRecoverable
+ alarms
+
+---
+ include/Thresholds.hpp |   6 +-
+ src/HwmonTempMain.cpp  | 159 ++++++++++++++++++++++++-----------------
+ 2 files changed, 98 insertions(+), 67 deletions(-)
+
+diff --git a/include/Thresholds.hpp b/include/Thresholds.hpp
+index 0b17c62..53be6d4 100644
+--- a/include/Thresholds.hpp
++++ b/include/Thresholds.hpp
+@@ -20,6 +20,7 @@ enum class Level
+     PERFORMANCELOSS,
+     SOFTSHUTDOWN,
+     HARDSHUTDOWN,
++	NONRECOVERABLE,
+     ERROR
+ };
+ enum class Direction
+@@ -130,12 +131,13 @@ struct ThresholdDefinition
+     const char* levelName;
+ };
+ 
+-constexpr static std::array<thresholds::ThresholdDefinition, 5> thresProp = {
++constexpr static std::array<thresholds::ThresholdDefinition, 6> thresProp = {
+     {{Level::WARNING, 0, "Warning"},
+      {Level::CRITICAL, 1, "Critical"},
+      {Level::PERFORMANCELOSS, 2, "PerformanceLoss"},
+      {Level::SOFTSHUTDOWN, 3, "SoftShutdown"},
+-     {Level::HARDSHUTDOWN, 4, "HardShutdown"}}};
++     {Level::HARDSHUTDOWN, 4, "HardShutdown"},
++	 {Level::NONRECOVERABLE, 5, "NonRecoverable"}}};
+ 
+ std::string getInterface(Level level);
+ 
+diff --git a/src/HwmonTempMain.cpp b/src/HwmonTempMain.cpp
+index 27b28d5..309222d 100644
+--- a/src/HwmonTempMain.cpp
++++ b/src/HwmonTempMain.cpp
+@@ -72,6 +72,7 @@ static const I2CDeviceTypeMap sensorTypes{
+     {"TMP421", I2CDeviceType{"tmp421", true}},
+     {"TMP441", I2CDeviceType{"tmp441", true}},
+     {"TMP75", I2CDeviceType{"tmp75", true}},
++    {"TMP468", I2CDeviceType{"tmp468", true}},
+     {"W83773G", I2CDeviceType{"w83773g", true}},
+ };
+ 
+@@ -161,13 +162,18 @@ struct SensorConfigKey
+ {
+     uint64_t bus;
+     uint64_t addr;
++    uint64_t reg;
+     bool operator<(const SensorConfigKey& other) const
+     {
+         if (bus != other.bus)
+         {
+             return bus < other.bus;
+         }
+-        return addr < other.addr;
++        if (addr != other.addr)
++        {
++            return addr < other.addr;
++        }
++        return reg < other.reg;
+     }
+ };
+ 
+@@ -193,15 +199,17 @@ static SensorConfigMap
+         {
+             auto busCfg = cfg.find("Bus");
+             auto addrCfg = cfg.find("Address");
++            auto regCfg = cfg.find("Reg");
+             if ((busCfg == cfg.end()) || (addrCfg == cfg.end()))
+             {
+                 continue;
+             }
+ 
+             if ((std::get_if<uint64_t>(&busCfg->second) == nullptr) ||
+-                (std::get_if<uint64_t>(&addrCfg->second) == nullptr))
++                (std::get_if<uint64_t>(&addrCfg->second) == nullptr) ||
++				(regCfg != cfg.end() && std::get_if<uint64_t>(&regCfg->second) == nullptr))
+             {
+-                std::cerr << path.str << " Bus or Address invalid\n";
++                std::cerr << path.str << " Bus or Address or Reg invalid\n";
+                 continue;
+             }
+ 
+@@ -225,14 +233,15 @@ static SensorConfigMap
+             }
+ 
+             SensorConfigKey key = {std::get<uint64_t>(busCfg->second),
+-                                   std::get<uint64_t>(addrCfg->second)};
++                                   std::get<uint64_t>(addrCfg->second),
++                                   regCfg == cfg.end() ? 1 : std::get<uint64_t>(regCfg->second)};
+             SensorConfig val = {path.str, cfgData, intf, cfg, hwmonNames};
+ 
+             auto [it, inserted] = configMap.emplace(key, std::move(val));
+             if (!inserted)
+             {
+                 std::cerr << path.str << ": ignoring duplicate entry for {"
+-                          << key.bus << ", 0x" << std::hex << key.addr
++                          << key.bus << ", 0x" << std::hex << ", " << key.reg
+                           << std::dec << "}\n";
+             }
+         }
+@@ -380,9 +389,21 @@ void createSensors(
+             }
+             std::string busStr = deviceName.substr(0, findHyphen);
+             std::string addrStr = deviceName.substr(findHyphen + 1);
++            std::string regStr = path.filename();
++			std::regex pattern("\\d+");
++			std::match_results<std::string::iterator> result;
++			if(std::regex_search(regStr.begin(), regStr.end(), result, pattern))
++            {
++                regStr = result[0].str();
++            }
++            else
++            {
++                regStr = "1";
++            }
+ 
+             uint64_t bus = 0;
+             uint64_t addr = 0;
++            uint64_t reg = 1;
+             std::from_chars_result res{};
+             res = std::from_chars(busStr.data(), busStr.data() + busStr.size(),
+                                   bus);
+@@ -396,9 +417,15 @@ void createSensors(
+             {
+                 continue;
+             }
++            res = std::from_chars(regStr.data(),
++                                  regStr.data() + regStr.size(), reg);
++            if (res.ec != std::errc{})
++            {
++                continue;
++            }
+ 
+             auto thisSensorParameters = getSensorParameters(path);
+-            auto findSensorCfg = configMap.find({bus, addr});
++            auto findSensorCfg = configMap.find({bus, addr, reg});
+             if (findSensorCfg == configMap.end())
+             {
+                 continue;
+@@ -490,7 +517,7 @@ void createSensors(
+                 sensor = nullptr;
+             }
+             auto hwmonFile =
+-                getFullHwmonFilePath(directory.string(), "temp1", permitSet);
++                getFullHwmonFilePath(directory.string(), "temp"+regStr, permitSet);
+             if (pathStr.starts_with("/sys/bus/iio/devices"))
+             {
+                 hwmonFile = pathStr;
+@@ -515,66 +542,68 @@ void createSensors(
+                 remove(hwmonName.begin(), hwmonName.end(), sensorName),
+                 hwmonName.end());
+ 
++			// Now, Lux think it is unreasonable 
+             // Looking for keys like "Name1" for temp2_input,
+             // "Name2" for temp3_input, etc.
+-            int i = 0;
+-            while (true)
+-            {
+-                ++i;
+-                auto findKey = baseConfigMap.find("Name" + std::to_string(i));
+-                if (findKey == baseConfigMap.end())
+-                {
+-                    break;
+-                }
+-                std::string sensorName = std::get<std::string>(findKey->second);
+-                hwmonFile = getFullHwmonFilePath(directory.string(),
+-                                                 "temp" + std::to_string(i + 1),
+-                                                 permitSet);
+-                if (pathStr.starts_with("/sys/bus/iio/devices"))
+-                {
+-                    continue;
+-                }
+-                if (hwmonFile)
+-                {
+-                    // To look up thresholds for these additional sensors,
+-                    // match on the Index property in the threshold data
+-                    // where the index comes from the sysfs file we're on,
+-                    // i.e. index = 2 for temp2_input.
+-                    int index = i + 1;
+-                    std::vector<thresholds::Threshold> thresholds;
+-
+-                    if (!parseThresholdsFromConfig(sensorData, thresholds,
+-                                                   nullptr, &index))
+-                    {
+-                        std::cerr << "error populating thresholds for "
+-                                  << sensorName << " index " << index << "\n";
+-                    }
+-
+-                    auto& sensor = sensors[sensorName];
+-                    if (!activateOnly)
+-                    {
+-                        sensor = nullptr;
+-                    }
+-
+-                    if (sensor != nullptr)
+-                    {
+-                        sensor->activate(*hwmonFile, i2cDev);
+-                    }
+-                    else
+-                    {
+-                        sensor = std::make_shared<HwmonTempSensor>(
+-                            *hwmonFile, sensorType, objectServer,
+-                            dbusConnection, io, sensorName,
+-                            std::move(thresholds), thisSensorParameters,
+-                            pollRate, interfacePath, readState, i2cDev);
+-                        sensor->setupRead();
+-                    }
+-                }
+-
+-                hwmonName.erase(
+-                    remove(hwmonName.begin(), hwmonName.end(), sensorName),
+-                    hwmonName.end());
+-            }
++//            int i = 0;
++//            while (true)
++//            {
++//                ++i;
++//                auto findKey = baseConfigMap.find("Name" + std::to_string(i));
++//                if (findKey == baseConfigMap.end())
++//                {
++//                    break;
++//                }
++//                std::string sensorName = std::get<std::string>(findKey->second);
++//				std::cout << "name: " << sensorName << std::endl;
++//                hwmonFile = getFullHwmonFilePath(directory.string(),
++//                                                 "temp" + std::to_string(i + 1),
++//                                                 permitSet);
++//                if (pathStr.starts_with("/sys/bus/iio/devices"))
++//                {
++//                    continue;
++//                }
++//                if (hwmonFile)
++//                {
++//                    // To look up thresholds for these additional sensors,
++//                    // match on the Index property in the threshold data
++//                    // where the index comes from the sysfs file we're on,
++//                    // i.e. index = 2 for temp2_input.
++//                    int index = i + 1;
++//                    std::vector<thresholds::Threshold> thresholds;
++//
++//                    if (!parseThresholdsFromConfig(sensorData, thresholds,
++//                                                   nullptr, &index))
++//                    {
++//                        std::cerr << "error populating thresholds for "
++//                                  << sensorName << " index " << index << "\n";
++//                    }
++//
++//                    auto& sensor = sensors[sensorName];
++//                    if (!activateOnly)
++//                    {
++//                        sensor = nullptr;
++//                    }
++//
++//                    if (sensor != nullptr)
++//                    {
++//                        sensor->activate(*hwmonFile, i2cDev);
++//                    }
++//                    else
++//                    {
++//                        sensor = std::make_shared<HwmonTempSensor>(
++//                            *hwmonFile, sensorType, objectServer,
++//                            dbusConnection, io, sensorName,
++//                            std::move(thresholds), thisSensorParameters,
++//                            pollRate, interfacePath, readState, i2cDev);
++//                        sensor->setupRead();
++//                    }
++//                }
++//
++//                hwmonName.erase(
++//                    remove(hwmonName.begin(), hwmonName.end(), sensorName),
++//                    hwmonName.end());
++//            }
+             if (hwmonName.empty())
+             {
+                 configMap.erase(findSensorCfg);
+-- 
+2.17.1
+

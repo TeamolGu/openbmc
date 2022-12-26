@@ -2,8 +2,10 @@
     {
         "Desc":
         {
-            "Name": "total_power",
-            "SensorType": "power"
+            "Name": "Total_Power",
+            "SensorType": "power",
+            "MinValue": 0,
+            "MaxValue": 6000
         },
         "Associations":
         [
@@ -18,7 +20,7 @@
             "DbusParam":
             [
                 {
-                    "ParamName": "T0",
+                    "ParamName": "P0",
                     "Desc":
                     {
                         "Name": "PSU0_Input_Power",
@@ -26,7 +28,7 @@
                     }
                 },
                 {
-                    "ParamName": "T1",
+                    "ParamName": "P1",
                     "Desc":
                     {
                         "Name": "PSU1_Input_Power",
@@ -35,13 +37,15 @@
                 }
             ]
         },
-        "Expression": "T0 + T1"
+        "Expression": "((P0 == P0) ? P0 : 0) + ((P1 == P1) ? P1 : 0)"
     },
     {
         "Desc":
         {
-            "Name": "P0_DIMM_VR_Pwr",
-            "SensorType": "power"
+            "Name": "PS0_Power",
+            "SensorType": "power",
+            "MinValue": 0,
+            "MaxValue": 3000
         },
         "Associations":
         [
@@ -56,30 +60,24 @@
             "DbusParam":
             [
                 {
-                    "ParamName": "T0",
+                    "ParamName": "P0",
                     "Desc":
                     {
-                        "Name": "CPU0_DIMM_VR_0_Input_Power",
-                        "SensorType": "power"
-                    }
-                },
-                {
-                    "ParamName": "T1",
-                    "Desc":
-                    {
-                        "Name": "CPU0_DIMM_VR_1_Input_Power",
+                        "Name": "PSU0_Input_Power",
                         "SensorType": "power"
                     }
                 }
             ]
         },
-        "Expression": "T0 + T1"
+        "Expression": "P0"
     },
     {
         "Desc":
         {
-            "Name": "P1_DIMM_VR_Pwr",
-            "SensorType": "power"
+            "Name": "PS1_Power",
+            "SensorType": "power",
+            "MinValue": 0,
+            "MaxValue": 3000
         },
         "Associations":
         [
@@ -94,127 +92,29 @@
             "DbusParam":
             [
                 {
-                    "ParamName": "T0",
+                    "ParamName": "P0",
                     "Desc":
                     {
-                        "Name": "CPU1_DIMM_VR_0_Input_Power",
-                        "SensorType": "power"
-                    }
-                },
-                {
-                    "ParamName": "T1",
-                    "Desc":
-                    {
-                        "Name": "CPU1_DIMM_VR_1_Input_Power",
+                        "Name": "PSU1_Input_Power",
                         "SensorType": "power"
                     }
                 }
             ]
         },
-        "Expression": "T0 + T1"
+        "Expression": "P0"
     },
     {
         "Desc":
         {
-            "Name": "CPU0_VR_Pwr",
-            "SensorType": "power"
+            "Name": "PS0_Temp",
+            "SensorType": "temperature",
+            "MinValue": -128.0,
+            "MaxValue": 127.0
         },
-        "Associations":
-        [
-            [
-                "chassis",
-                "all_sensors",
-                "/xyz/openbmc_project/inventory/system/board/Palos"
-            ]
-        ],
-        "Params":
-        {
-            "DbusParam":
-            [
-                {
-                    "ParamName": "T0",
-                    "Desc":
-                    {
-                        "Name": "CPU0_VR_0_Input_Power",
-                        "SensorType": "power"
-                    }
-                },
-                {
-                    "ParamName": "T1",
-                    "Desc":
-                    {
-                        "Name": "CPU0_VR_1_Input_Power",
-                        "SensorType": "power"
-                    }
-                },
-                {
-                    "ParamName": "T2",
-                    "Desc":
-                    {
-                        "Name": "CPU0_VR_2_Input_Power",
-                        "SensorType": "power"
-                    }
-                }
-            ]
-        },
-        "Expression": "T0 + T1 + T2"
-    },
-    {
-        "Desc":
-        {
-            "Name": "CPU1_VR_Pwr",
-            "SensorType": "power"
-        },
-        "Associations":
-        [
-            [
-                "chassis",
-                "all_sensors",
-                "/xyz/openbmc_project/inventory/system/board/Palos"
-            ]
-        ],
-        "Params":
-        {
-            "DbusParam":
-            [
-                {
-                    "ParamName": "T0",
-                    "Desc":
-                    {
-                        "Name": "CPU1_VR_0_Input_Power",
-                        "SensorType": "power"
-                    }
-                },
-                {
-                    "ParamName": "T1",
-                    "Desc":
-                    {
-                        "Name": "CPU1_VR_1_Input_Power",
-                        "SensorType": "power"
-                    }
-                },
-                {
-                    "ParamName": "T2",
-                    "Desc":
-                    {
-                        "Name": "CPU1_VR_2_Input_Power",
-                        "SensorType": "power"
-                    }
-                }
-            ]
-        },
-        "Expression": "T0 + T1 + T2"
-    },
-    {
-        "Desc":
-        {
-            "Name": "P0_DIMM_VR_Temp",
-            "SensorType": "temperature"
-        },
-		"Threshold" :
+		"Threshold":
 		{
-			"CriticalHigh": 125,
-			"WarningHigh": 105
+			"CriticalHigh": 60,
+			"WarningHigh": 55
 		},
         "Associations":
         [
@@ -232,32 +132,26 @@
                     "ParamName": "T0",
                     "Desc":
                     {
-                        "Name": "CPU0_DIMM_VR_0_Temperature",
-                        "SensorType": "temperature"
-                    }
-                },
-                {
-                    "ParamName": "T1",
-                    "Desc":
-                    {
-                        "Name": "CPU0_DIMM_VR_1_Temperature",
+                        "Name": "PSU0_Temperature",
                         "SensorType": "temperature"
                     }
                 }
             ]
         },
-        "Expression": "max(T0, T1)"
+        "Expression": "T0"
     },
     {
         "Desc":
         {
-            "Name": "P1_DIMM_VR_Temp",
-            "SensorType": "temperature"
+            "Name": "PS1_Temp",
+            "SensorType": "temperature",
+            "MinValue": -128.0,
+            "MaxValue": 127.0
         },
-		"Threshold" :
+		"Threshold":
 		{
-			"CriticalHigh": 125,
-			"WarningHigh": 105
+			"CriticalHigh": 60,
+			"WarningHigh": 55
 		},
         "Associations":
         [
@@ -275,122 +169,12 @@
                     "ParamName": "T0",
                     "Desc":
                     {
-                        "Name": "CPU1_DIMM_VR_0_Temperature",
-                        "SensorType": "temperature"
-                    }
-                },
-                {
-                    "ParamName": "T1",
-                    "Desc":
-                    {
-                        "Name": "CPU1_DIMM_VR_1_Temperature",
+                        "Name": "PSU1_Temperature",
                         "SensorType": "temperature"
                     }
                 }
             ]
         },
-        "Expression": "max(T0, T1)"
-    },
-    {
-        "Desc":
-        {
-            "Name": "CPU0_VR_Temp",
-            "SensorType": "temperature"
-        },
-		"Threshold" :
-		{
-			"CriticalHigh": 125,
-			"WarningHigh": 105
-		},
-        "Associations":
-        [
-            [
-                "chassis",
-                "all_sensors",
-                "/xyz/openbmc_project/inventory/system/board/Palos"
-            ]
-        ],
-        "Params":
-        {
-            "DbusParam":
-            [
-                {
-                    "ParamName": "T0",
-                    "Desc":
-                    {
-                        "Name": "CPU0_VR_0_Temperature",
-                        "SensorType": "temperature"
-                    }
-                },
-                {
-                    "ParamName": "T1",
-                    "Desc":
-                    {
-                        "Name": "CPU0_VR_1_Temperature",
-                        "SensorType": "temperature"
-                    }
-                },
-                {
-                    "ParamName": "T2",
-                    "Desc":
-                    {
-                        "Name": "CPU0_VR_2_Temperature",
-                        "SensorType": "temperature"
-                    }
-                }
-            ]
-        },
-        "Expression": "max(T0, T1, T2)"
-    },
-    {
-        "Desc":
-        {
-            "Name": "CPU1_VR_Temp",
-            "SensorType": "temperature"
-        },
-		"Threshold" :
-		{
-			"CriticalHigh": 125,
-			"WarningHigh": 105
-		},
-        "Associations":
-        [
-            [
-                "chassis",
-                "all_sensors",
-                "/xyz/openbmc_project/inventory/system/board/Palos"
-            ]
-        ],
-        "Params":
-        {
-            "DbusParam":
-            [
-                {
-                    "ParamName": "T0",
-                    "Desc":
-                    {
-                        "Name": "CPU1_VR_0_Temperature",
-                        "SensorType": "temperature"
-                    }
-                },
-                {
-                    "ParamName": "T1",
-                    "Desc":
-                    {
-                        "Name": "CPU1_VR_1_Temperature",
-                        "SensorType": "temperature"
-                    }
-                },
-                {
-                    "ParamName": "T2",
-                    "Desc":
-                    {
-                        "Name": "CPU1_VR_2_Temperature",
-                        "SensorType": "temperature"
-                    }
-                }
-            ]
-        },
-        "Expression": "max(T0, T1, T2)"
+        "Expression": "T0"
     }
 ]

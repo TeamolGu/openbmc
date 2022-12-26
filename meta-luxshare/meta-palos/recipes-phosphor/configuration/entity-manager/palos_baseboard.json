@@ -585,73 +585,73 @@
         {
             "BindConnector": "System Fan connector 1",
             "Index": 0,
-            "Name": "Fan1_0",
+            "Name": "FAN1_In",
             "Type": "AspeedFan"
         },
         {
             "BindConnector": "System Fan connector 1",
             "Index": 1,
-            "Name": "Fan1_1",
+            "Name": "FAN1_Ex",
             "Type": "AspeedFan"
         },
         {
             "BindConnector": "System Fan connector 2",
             "Index": 2,
-            "Name": "Fan2_0",
+            "Name": "FAN2_In",
             "Type": "AspeedFan"
         },
         {
             "BindConnector": "System Fan connector 2",
             "Index": 3,
-            "Name": "Fan2_1",
+            "Name": "FAN2_Ex",
             "Type": "AspeedFan"
         },
         {
             "BindConnector": "System Fan connector 3",
             "Index": 4,
-            "Name": "Fan3_0",
+            "Name": "FAN3_In",
             "Type": "AspeedFan"
         },
         {
             "BindConnector": "System Fan connector 3",
             "Index": 5,
-            "Name": "Fan3_1",
+            "Name": "FAN3_Ex",
             "Type": "AspeedFan"
         },
         {
             "BindConnector": "System Fan connector 4",
             "Index": 8,
-            "Name": "Fan4_0",
+            "Name": "FAN4_In",
             "Type": "AspeedFan"
         },
         {
             "BindConnector": "System Fan connector 4",
             "Index": 9,
-            "Name": "Fan4_1",
+            "Name": "FAN4_Ex",
             "Type": "AspeedFan"
         },
         {
             "BindConnector": "System Fan connector 5",
             "Index": 10,
-            "Name": "Fan5_0",
+            "Name": "FAN5_In",
             "Type": "AspeedFan"
         },
         {
             "BindConnector": "System Fan connector 5",
             "Index": 11,
-            "Name": "Fan5_1",
+            "Name": "FAN5_Ex",
             "Type": "AspeedFan"
         },
         {
             "BindConnector": "System Fan connector 6",
             "Index": 12,
-            "Name": "Fan6_0",
+            "Name": "FAN6_In",
             "Type": "AspeedFan"
         },
         {
             "BindConnector": "System Fan connector 6",
             "Index": 13,
-            "Name": "Fan6_1",
+            "Name": "FAN6_Ex",
             "Type": "AspeedFan"
         },
         {
@@ -662,18 +662,18 @@
             "TachMaxPercent": 100,
             "TachMinPercent": 20,
             "Tachs": [
-                "Fan1_0",
-                "Fan1_1",
-                "Fan2_0",
-                "Fan2_1",
-                "Fan3_0",
-                "Fan3_1",
-                "Fan4_0",
-                "Fan4_1",
-                "Fan5_0",
-                "Fan5_1",
-                "Fan6_0",
-                "Fan6_1"
+                "FAN1_In",
+                "FAN1_Ex",
+                "FAN2_In",
+                "FAN2_Ex",
+                "FAN3_In",
+                "FAN3_Ex",
+                "FAN4_In",
+                "FAN4_Ex",
+                "FAN5_In",
+                "FAN5_Ex",
+                "FAN6_In",
+                "FAN6_Ex"
             ],
             "Type": "CFMSensor"
         },
@@ -706,7 +706,7 @@
         },
         {
             "Name": "System Fan connector 4",
-            "Pwm": 3,
+            "Pwm": 4,
             "Tachs": [
                 8,
                 9
@@ -715,7 +715,7 @@
         },
         {
             "Name": "System Fan connector 5",
-            "Pwm": 4,
+            "Pwm": 5,
             "Tachs": [
                 10,
                 11
@@ -724,7 +724,7 @@
         },
         {
             "Name": "System Fan connector 6",
-            "Pwm": 5,
+            "Pwm": 6,
             "Tachs": [
                 12,
                 13
@@ -824,7 +824,7 @@
         {
             "Address": "0x48",
             "Bus": 6,
-            "Name": "PCIe_Zone_Temp",
+            "Name": "PCIe0_Zone_Temp",
             "PollRate": 1.0,
             "Reg": "0x6",
             "Thresholds": [
@@ -1012,8 +1012,8 @@
             "ILimitMax": 0.0,
             "ILimitMin": 0.0,
             "Inputs": [
-                "Fan1_0",
-                "Fan1_1"
+                "FAN1_In",
+                "FAN1_Ex"
             ],
             "Name": "Fan_1",
             "NegativeHysteresis": 0.0,
@@ -1039,8 +1039,8 @@
             "ILimitMax": 0.0,
             "ILimitMin": 0.0,
             "Inputs": [
-                "Fan2_0",
-                "Fan2_1"
+                "FAN2_In",
+                "FAN2_Ex"
             ],
             "Name": "Fan_2",
             "NegativeHysteresis": 0.0,
@@ -1066,8 +1066,8 @@
             "ILimitMax": 0.0,
             "ILimitMin": 0.0,
             "Inputs": [
-                "Fan3_0",
-                "Fan3_1"
+                "FAN3_In",
+                "FAN3_Ex"
             ],
             "Name": "Fan_3",
             "NegativeHysteresis": 0.0,
@@ -1093,8 +1093,8 @@
             "ILimitMax": 0.0,
             "ILimitMin": 0.0,
             "Inputs": [
-                "Fan4_0",
-                "Fan4_1"
+                "FAN4_In",
+                "FAN4_Ex"
             ],
             "Name": "Fan_4",
             "NegativeHysteresis": 0.0,
@@ -1120,8 +1120,8 @@
             "ILimitMax": 0.0,
             "ILimitMin": 0.0,
             "Inputs": [
-                "Fan5_0",
-                "Fan5_1"
+                "FAN5_In",
+                "FAN5_Ex"
             ],
             "Name": "Fan_5",
             "NegativeHysteresis": 0.0,
@@ -1147,8 +1147,8 @@
             "ILimitMax": 0.0,
             "ILimitMin": 0.0,
             "Inputs": [
-                "Fan6_0",
-                "Fan6_1"
+                "FAN6_In",
+                "FAN6_Ex"
             ],
             "Name": "Fan_6",
             "NegativeHysteresis": 0.0,
@@ -1196,7 +1196,7 @@
                     "Value": 0
                 }
             ],
-            "Type": "pmbus"
+            "Type": "ISL69243"
         },
         {
             "Address": "0x5E",
@@ -1228,7 +1228,7 @@
                     "Value": 0
                 }
             ],
-            "Type": "pmbus"
+            "Type": "ISL69243"
         },
         {
             "Address": "0x58",
@@ -1260,7 +1260,7 @@
                     "Value": 0
                 }
             ],
-            "Type": "pmbus"
+            "Type": "ISL69247"
         },
         {
             "Address": "0x5C",
@@ -1292,7 +1292,7 @@
                     "Value": 0
                 }
             ],
-            "Type": "pmbus"
+            "Type": "ISL69247"
         },
         {
             "Address": "0x60",
@@ -1324,7 +1324,7 @@
                     "Value": 0
                 }
             ],
-            "Type": "pmbus"
+            "Type": "PXE1610"
         },
         {
             "Address": "0x64",
@@ -1356,7 +1356,7 @@
                     "Value": 0
                 }
             ],
-            "Type": "pmbus"
+            "Type": "PXE1610"
         },
         {
             "Address": "0x70",
@@ -1388,7 +1388,7 @@
                     "Value": 0
                 }
             ],
-            "Type": "pmbus"
+            "Type": "PXE1610"
         },
         {
             "Address": "0x74",
@@ -1420,7 +1420,7 @@
                     "Value": 0
                 }
             ],
-            "Type": "pmbus"
+            "Type": "PXE1610"
         },
         {
             "Address": "0x58",
